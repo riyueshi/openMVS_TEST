@@ -24,12 +24,12 @@ bool SceneDevide::InitialParams()
 
 bool SceneDevide::SceneDevideProcess()
 {
-	MVS::Scene sceneOri = (*_pScene);
+	//MVS::Scene sceneOri = (*_pScene);
 
 	//process one of the scene
 	{
 		//apply the original params to created scene
-		scenes.at(0).platforms = sceneOri.platforms;
+		scenes.at(0).platforms = (*_pScene).platforms;
 	}
 	return false;
 }
