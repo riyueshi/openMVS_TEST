@@ -30,12 +30,7 @@ bool SceneDevide::SceneDevideProcess()
 	{
 		//apply the original params to created scene
 		scenes.at(0).platforms = sceneOri.platforms;
-
 	}
-
-
-
-
 	return false;
 }
 
@@ -65,7 +60,7 @@ bool SceneDevide::ImageCrop(
 	using boost::geometry::correct;
 	using boost::geometry::dsv;
 
-	if (_pScene->images.size()==0)
+	if (_pScene->images.size() == 0)
 	{
 		cout << "Error: no valid images in scene!" << endl;
 		return false;
@@ -88,9 +83,7 @@ bool SceneDevide::ImageCrop(
 		imageIndexed.width = imageWidth;
 		imageIndexed.height = imageHeight;
 		imageIndexed.UpdateCamera(_pScene->platforms);
-		//cout << imageIndexed.camera.K << endl;
 		imageIndexed.camera.ComposeP();
-
 
 		for (size_t i = 0; i < groundPointVec.size(); i++)
 		{
@@ -143,7 +136,6 @@ bool SceneDevide::ImageCrop(
 				{
 					continue;
 				}
-
 				imageIndexToSave.push_back(imageIndex);
 				matcher.insert(pair<int, int>(imageIndex, imageIndexToSave.size() - 1));
 				cv::Mat subImage = image(cv::Rect(minX, minY, maxX - minX, maxY - minY));
@@ -158,9 +150,6 @@ bool SceneDevide::ImageCrop(
 				}
 				cv::imwrite(imageOutputName, subImage);
 			}
-			//cout << scene.platforms[imageIndexed.platformID].cameras[0].K << endl;
-			//double deltX = -minX / double(subImage.cols);
-			//double deltY = -minY / double(subImage.cols);
 
 			double valueMax = maxX - minX > maxY - minY ? maxX - minX : maxY - minY;
 			double deltX = (xo - minX) / valueMax - _pScene->platforms[imageIndexed.platformID].cameras[0].K(0, 2);
@@ -172,19 +161,14 @@ bool SceneDevide::ImageCrop(
 			double focalNew = focalOld*imageWidth / valueMax;	// FIXME: wether this expression hold for image which height is bigger than width
 			scene.platforms[imageIndexed.platformID].cameras[0].UpdateFocalLengthAbs(focalNew);
 
-
 			imageIndexed.width = maxX - minX;
 			imageIndexed.height = maxY - minY;
 			imageIndexed.UpdateCamera(scene.platforms);
 			imageIndexed.name = imageOutputName;
 			imageIndexed.camera.ComposeP();
 
-
-			//cout << imageIndexed.name << endl << imageIndexed.width << endl << imageIndexed.height << endl;
-			//cout << imageIndexed.camera.K << endl;
-			//cout << " delt x: " << imageIndexed.camera.K(0, 2) - (xo - minX) << endl;
-			//cout << " delt y: " << imageIndexed.camera.K(1, 2) - (yo - minY) << endl << endl;
-			//getchar();
+			//add image to the scene
+			scene.images.push_back(imageIndexed);
 		}
 		else
 		{
@@ -192,5 +176,65 @@ bool SceneDevide::ImageCrop(
 		}
 	}
 
+	//update image's neighbor image
+	int imageIndex(0);
+	for (auto imageIndexed = scene.images.begin(); imageIndexed != scene.images.end(); imageIndexed++, imageIndex++)
+	{
+		for (auto neighborIndexed = imageIndexed->neighbors.begin() ; neighborIndexed !=imageIndexed->neighbors.end(); neighborIndexed++)
+		{
+			auto pos = matcher.find(neighborIndexed->idx.ID);
+			if (pos == matcher.end())
+			{
+				auto oneAfterCurrent = neighborIndexed++;
+				neighborIndexed--;		//FIXME: a little stupid
+				imageIndexed->neighbors.Remove(*neighborIndexed);
+				neighborIndexed = oneAfterCurrent;
+			}
+			else
+			{
+				neighborIndexed->idx.ID = matcher.at(neighborIndexed->idx.ID);
+			}
+		}
+	}
+	return true;
+}
+
+bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int, int>& matcher, MVS::Scene & scene)
+{
+	if (_pScene->pointcloud.GetSize()==0)
+	{
+		std::cout << "Error: Enmpty point cloud in scene" << endl;
+		return false;
+	}
+	if (_pScene->pointcloud.points.size()!= _pScene->pointcloud.pointViews.size()||
+		_pScene->pointcloud.points.size() != _pScene->pointcloud.normals.size() ||
+		_pScene->pointcloud.points.size() != _pScene->pointcloud.colors.size() ||
+		_pScene->pointcloud.points.size() != _pScene->pointcloud.pointWeights.size() )
+	{
+		std::cout << "Error: Invalid point cloud in scene" << endl;
+		return false;
+	}
+
+	//FIXME: compare which is faster iterater or [] operation
+	auto pointView = _pScene->pointcloud.pointViews.begin();
+	auto pointNormal = _pScene->pointcloud.normals.begin();
+	auto pointColor = _pScene->pointcloud.colors.begin();
+	auto pointWeight = _pScene->pointcloud.pointWeights.begin();
+	for (auto point = _pScene->pointcloud.points.begin(); point != _pScene->pointcloud.points.end(); ++point)
+	{
+		if (point->x > range.at(0).x&&
+			point->x < range.at(1).x&&
+			point->y > range.at(0).y&&
+			point->y < range.at(1).y)
+		{
+			scene.pointcloud.points.push_back(*point);
+			scene.pointcloud.pointViews.push_back(*pointView);
+			scene.pointcloud.normals.push_back(*pointNormal);
+			scene.pointcloud.colors.push_back(*pointColor);
+			scene.pointcloud.pointWeights.push_back(*pointWeight);
+
+			++pointView, ++pointNormal, ++pointColor, ++pointWeight;
+		}
+	}
 	return true;
 }
