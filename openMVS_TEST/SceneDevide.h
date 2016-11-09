@@ -25,7 +25,7 @@ BOOST_GEOMETRY_REGISTER_RING(Polygon_2d::ring_type)
 class SceneDevide
 {
 public:
-	SceneDevide();
+	SceneDevide(MVS::Scene *sceneOri);
 	~SceneDevide();
 
 

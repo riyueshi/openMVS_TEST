@@ -243,3 +243,6 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+/openMVS_TEST/imageCrop
+/openMVS_TEST/test.ply
+/openMVS_TEST/test.mvs

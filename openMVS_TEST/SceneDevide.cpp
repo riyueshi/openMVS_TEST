@@ -5,10 +5,14 @@
 using namespace std;
 using namespace MVS;
 
-const int SceneDevide::imageWidth = 8176;
-const int SceneDevide::imageHeight = 6132;
+//const int SceneDevide::imageWidth = 8176;
+//const int SceneDevide::imageHeight = 6132;
+const int SceneDevide::imageWidth = 4088;
+const int SceneDevide::imageHeight = 3066;
+//const int SceneDevide::imageWidth = 1022;
+//const int SceneDevide::imageHeight = 766;
 
-SceneDevide::SceneDevide()
+SceneDevide::SceneDevide(MVS::Scene *sceneOri) :_pScene(sceneOri)
 {
 }
 
@@ -24,14 +28,30 @@ bool SceneDevide::InitialParams()
 
 bool SceneDevide::SceneDevideProcess()
 {
-	//MVS::Scene sceneOri = (*_pScene);
-
-	//process one of the scene
+	//process one of the scene testblock
 	{
 		//apply the original params to created scene
-		scenes.at(0).platforms = (*_pScene).platforms;
+		MVS::Scene scene;
+		scene.platforms = (*_pScene).platforms;
+		std::vector<Point2d> range;
+		range.push_back(Point2d(-2.6054, -0.9664));
+		range.push_back(Point2d(0.5879, 1.0688));
+		const double avgHeight(0.3500);
+		std::map<int, int> matcher;
+		string imagePath("imageCrop\\");
+		
+		this->ImageCrop(range, imagePath, avgHeight, matcher, scene);
+		this->PointCloudCrop(range, matcher, scene);
+
+		cout << scene.images.begin()->name << endl;
+		cout << scene.images.begin()->camera.K;
+		scene.Save("test.mvs");
+		scene.pointcloud.Save("test.ply");
+
+		//
+
 	}
-	return false;
+	return true;
 }
 
 
@@ -80,6 +100,9 @@ bool SceneDevide::ImageCrop(
 		Image imageIndexed = _pScene->images[imageIndex]; //FIXME: this copy opeartion seam a big cost
 
 		//update the camera and compose the project matrix
+
+		//cout << imageIndexed.width << endl;
+		//getchar();
 		imageIndexed.width = imageWidth;
 		imageIndexed.height = imageHeight;
 		imageIndexed.UpdateCamera(_pScene->platforms);
@@ -126,11 +149,13 @@ bool SceneDevide::ImageCrop(
 				continue;
 			}
 
-			string imageName = imageIndexed.name;
-			string imageOutputName = imagePath + "\\" + imageName.substr(imageName.find_last_of('/'), imageName.length() - imageName.find_last_of('/'));
+			string imageName =string("F:/MillerWorkPath/mvsWorkPathGCP/")+ imageIndexed.name; //FIXME: image path specific
+			string imageOutputName = imagePath + "/" + imageName.substr(imageName.find_last_of('/'), imageName.length() - imageName.find_last_of('/'));
 
 			if (writeImageTag)
 			{
+				//cout << imageName << endl;
+				//getchar();
 				cv::Mat image = cv::imread(imageName);
 				if (boost::geometry::area(overlap) < areaThreshold)
 				{
@@ -138,6 +163,9 @@ bool SceneDevide::ImageCrop(
 				}
 				imageIndexToSave.push_back(imageIndex);
 				matcher.insert(pair<int, int>(imageIndex, imageIndexToSave.size() - 1));
+			//
+			cout << minX << endl << minY << endl << maxX << endl << maxY << endl;
+			//
 				cv::Mat subImage = image(cv::Rect(minX, minY, maxX - minX, maxY - minY));
 				//creat output path
 				if (!stlplus::folder_exists(imagePath + "\\"))
@@ -151,12 +179,18 @@ bool SceneDevide::ImageCrop(
 				cv::imwrite(imageOutputName, subImage);
 			}
 
+			cout << imageIndexed.name << " " << minX << " " << minY << endl;
+			cout << _pScene->platforms[imageIndexed.platformID].cameras[0].K(0, 2);
+
 			double valueMax = maxX - minX > maxY - minY ? maxX - minX : maxY - minY;
 			double deltX = (xo - minX) / valueMax - _pScene->platforms[imageIndexed.platformID].cameras[0].K(0, 2);
 			double deltY = (yo - minY) / valueMax - _pScene->platforms[imageIndexed.platformID].cameras[0].K(1, 2);
+			//double deltX = - minX / imageWidth ;
+			//double deltY = - minY / imageWidth;
 
 			scene.platforms[imageIndexed.platformID].cameras[0].UpdatePrincipalPoint(Point2(deltX, deltY));
 
+			//cout << scene.platforms[imageIndexed.platformID].cameras[0].K << endl; getchar();
 			double focalOld = _pScene->platforms[imageIndexed.platformID].cameras[0].K(0, 0);
 			double focalNew = focalOld*imageWidth / valueMax;	// FIXME: wether this expression hold for image which height is bigger than width
 			scene.platforms[imageIndexed.platformID].cameras[0].UpdateFocalLengthAbs(focalNew);
@@ -165,7 +199,7 @@ bool SceneDevide::ImageCrop(
 			imageIndexed.height = maxY - minY;
 			imageIndexed.UpdateCamera(scene.platforms);
 			imageIndexed.name = imageOutputName;
-			imageIndexed.camera.ComposeP();
+			//imageIndexed.camera.ComposeP();
 
 			//add image to the scene
 			scene.images.push_back(imageIndexed);
@@ -180,8 +214,10 @@ bool SceneDevide::ImageCrop(
 	int imageIndex(0);
 	for (auto imageIndexed = scene.images.begin(); imageIndexed != scene.images.end(); imageIndexed++, imageIndex++)
 	{
+
 		for (auto neighborIndexed = imageIndexed->neighbors.begin() ; neighborIndexed !=imageIndexed->neighbors.end(); neighborIndexed++)
 		{
+			cout << _pScene->images[neighborIndexed->idx.ID].name << endl;
 			auto pos = matcher.find(neighborIndexed->idx.ID);
 			if (pos == matcher.end())
 			{
@@ -192,7 +228,15 @@ bool SceneDevide::ImageCrop(
 			}
 			else
 			{
+				//cout << _pScene->images[neighborIndexed->idx.ID].name << endl
+				//	<< scene.images[matcher.at(neighborIndexed->idx.ID)].name << endl;
+
+				//cout << scene.images[matcher.at(neighborIndexed->idx.ID)].camera.K << endl << endl
+				//	<< _pScene->images[matcher.at(neighborIndexed->idx.ID)].camera.K << endl << endl;
+				//cout << _pScene->images[matcher.at(neighborIndexed->idx.ID)].camera.K - scene.images[matcher.at(neighborIndexed->idx.ID)].camera.K << endl;
+				//getchar();
 				neighborIndexed->idx.ID = matcher.at(neighborIndexed->idx.ID);
+				
 			}
 		}
 	}
@@ -206,8 +250,15 @@ bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int
 		std::cout << "Error: Enmpty point cloud in scene" << endl;
 		return false;
 	}
-	if (_pScene->pointcloud.points.size()!= _pScene->pointcloud.pointViews.size()||
-		_pScene->pointcloud.points.size() != _pScene->pointcloud.normals.size() ||
+
+	cout << endl << _pScene->pointcloud.points.size() << endl
+		<< _pScene->pointcloud.pointViews.size() << endl
+		<< _pScene->pointcloud.normals.size() << endl
+		<< _pScene->pointcloud.colors.size() << endl
+		<< _pScene->pointcloud.pointWeights.size() << endl << endl;
+
+	if (_pScene->pointcloud.points.size() != _pScene->pointcloud.pointViews.size()||
+		//_pScene->pointcloud.points.size() != _pScene->pointcloud.normals.size() ||
 		_pScene->pointcloud.points.size() != _pScene->pointcloud.colors.size() ||
 		_pScene->pointcloud.points.size() != _pScene->pointcloud.pointWeights.size() )
 	{
@@ -217,7 +268,7 @@ bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int
 
 	//FIXME: compare which is faster iterater or [] operation
 	auto pointView = _pScene->pointcloud.pointViews.begin();
-	auto pointNormal = _pScene->pointcloud.normals.begin();
+	//auto pointNormal = _pScene->pointcloud.normals.begin();
 	auto pointColor = _pScene->pointcloud.colors.begin();
 	auto pointWeight = _pScene->pointcloud.pointWeights.begin();
 	for (auto point = _pScene->pointcloud.points.begin(); point != _pScene->pointcloud.points.end(); ++point)
@@ -229,11 +280,29 @@ bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int
 		{
 			scene.pointcloud.points.push_back(*point);
 			scene.pointcloud.pointViews.push_back(*pointView);
-			scene.pointcloud.normals.push_back(*pointNormal);
+			//scene.pointcloud.normals.push_back(*pointNormal);
 			scene.pointcloud.colors.push_back(*pointColor);
 			scene.pointcloud.pointWeights.push_back(*pointWeight);
+		}
+		++pointView,/* ++pointNormal,*/ ++pointColor, ++pointWeight;
 
-			++pointView, ++pointNormal, ++pointColor, ++pointWeight;
+	}
+	for (auto pointView = scene.pointcloud.pointViews.begin(); pointView != scene.pointcloud.pointViews.end(); pointView++)
+	{
+		for (auto viewIndex = pointView->begin(); viewIndex != pointView->end(); viewIndex++)
+		{
+			auto pos = matcher.find(*viewIndex);
+			if (pos == matcher.end())
+			{
+				auto oneAfterCurrent = viewIndex++;
+				viewIndex--;		//FIXME: a little stupid
+				pointView->Remove(*viewIndex);
+				viewIndex = oneAfterCurrent;
+			}
+			else
+			{
+				*viewIndex = matcher.at(*viewIndex);
+			}
 		}
 	}
 	return true;

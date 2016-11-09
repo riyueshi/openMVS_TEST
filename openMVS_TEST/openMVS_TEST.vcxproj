@@ -74,7 +74,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>.\stlplus3\filesystemSimplified;F:\MillerWorkPath\Libs\ceres\deps\eigen\Eigen;F:\MillerWorkPath\Libs\boost_1_60_0;F:\MillerWorkPath\Libs\ceres\deps\eigen;F:\MillerWorkPath\boost_1_60_0;F:\MillerWorkPath\Libs\opencv310\include;F:\MillerWorkPath\openMVS\include\OpenMVS;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
-    <LibraryPath>F:\MillerWorkPath\Libs\CGAL-4.7\bin\lib;F:\MillerWorkPath\openMVS\lib\vc14\x64\Release;F:\MillerWorkPath\Libs\boost_1_60_0\stage\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64;$(LibraryPath)</LibraryPath>
+    <LibraryPath>F:\MillerWorkPath\Libs\CGAL-4.7\bin\lib;F:\MillerWorkPath\openMVS07\lib;F:\MillerWorkPath\Libs\boost_1_60_0\stage\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
