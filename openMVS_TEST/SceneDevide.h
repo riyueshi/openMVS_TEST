@@ -39,6 +39,7 @@ public:
 	bool PointCloudCrop(const std::vector<Point2d>& range,
 		std::map<int, int>& matcher,
 		MVS::Scene &scene);
+	static bool SceneDevide::UniqueImageCamera(MVS::Scene &scene);
 
 	typedef TPoint2<double> Point2d;
 	std::vector<MVS::Scene> scenes;

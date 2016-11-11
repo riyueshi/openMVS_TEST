@@ -31,6 +31,43 @@ bool ShowImageInfo(const MVS::Scene &scene, std::string fileName)
 	return true;
 }
 
+// make all the image have its own camera in platform, desigined only for scene contaions only 1 camera in each platform
+bool SceneDevide::UniqueImageCamera(MVS::Scene &scene)
+{
+	const int numOfPlatform = scene.platforms.size();
+	//check scene contaions only 1 canera in each platform
+	for (size_t i = 0; i < numOfPlatform; i++)
+	{
+		if (scene.platforms[i].cameras.size() != 1)
+		{
+			cout << "Error: failed to unique image camera" << endl;
+			return false;
+		}
+	}
+
+	vector<vector<int>> cameraIndex;
+	cameraIndex.resize(numOfPlatform);
+	for (size_t imageIndex = 0; imageIndex < scene.images.size(); imageIndex++)
+	{
+		cameraIndex.at(scene.images[imageIndex].platformID).push_back(imageIndex);
+	}
+
+	for (size_t platformIndex = 0; platformIndex < numOfPlatform; platformIndex++)
+	{
+		Camera cam = scene.platforms[platformIndex].cameras[0];
+		for (size_t index = 0; index < cameraIndex.at(platformIndex).size(); index++)
+		{
+			if (index!=0)
+			{
+				scene.platforms[platformIndex].cameras.push_back(cam);
+			}
+			scene.images[cameraIndex.at(platformIndex).at(index)].cameraID = index;
+		}
+	}
+
+	return true;
+}
+
 SceneDevide::SceneDevide(MVS::Scene *sceneOri) :_pScene(sceneOri)
 {
 }
