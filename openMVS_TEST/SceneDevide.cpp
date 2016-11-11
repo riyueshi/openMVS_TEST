@@ -12,6 +12,25 @@ const int SceneDevide::imageHeight = 3066;
 //const int SceneDevide::imageWidth = 1022;
 //const int SceneDevide::imageHeight = 766;
 
+bool ShowImageInfo(const MVS::Scene &scene, std::string fileName)
+{
+	std::ofstream writer(fileName);
+	for (auto imageIndexed = scene.images.begin(); imageIndexed != scene.images.end(); imageIndexed++)
+	{
+		imageIndexed->UpdateCamera(scene.platforms);
+		writer << imageIndexed->name << imageIndexed->height << " " << imageIndexed->width << endl
+			<< imageIndexed->camera.K << endl
+			<< scene.platforms[imageIndexed->platformID].cameras[imageIndexed->cameraID].K << endl << endl;
+
+		for (auto neightBorIndexed = imageIndexed->neighbors.begin(); neightBorIndexed != imageIndexed->neighbors.end(); neightBorIndexed++)
+		{
+			writer << neightBorIndexed->idx.ID << " ";
+		}
+		writer << endl;
+	}
+	return true;
+}
+
 SceneDevide::SceneDevide(MVS::Scene *sceneOri) :_pScene(sceneOri)
 {
 }
@@ -48,8 +67,17 @@ bool SceneDevide::SceneDevideProcess()
 		scene.Save("test.mvs");
 		scene.pointcloud.Save("test.ply");
 
+		ShowImageInfo(scene, "sceneImageCroped.txt");
+		ShowImageInfo(*_pScene, "sceneImage.txt");
+		//for (size_t i = 0; i < _pScene->images[0].neighbors.size(); i++)
+		//{
+		//	cout << _pScene->images[_pScene->images[0].neighbors[i].idx.ID].name << endl;
+		//	cout << scene.images[scene.images[0].neighbors[i].idx.ID].name << endl;
+		//	getchar();
+		//}
 		//
-
+		cout << "process finished" << endl;
+		getchar();
 	}
 	return true;
 }
@@ -103,10 +131,10 @@ bool SceneDevide::ImageCrop(
 
 		//cout << imageIndexed.width << endl;
 		//getchar();
-		imageIndexed.width = imageWidth;
-		imageIndexed.height = imageHeight;
-		imageIndexed.UpdateCamera(_pScene->platforms);
-		imageIndexed.camera.ComposeP();
+		//imageIndexed.width = imageWidth;
+		//imageIndexed.height = imageHeight;
+		//imageIndexed.UpdateCamera(_pScene->platforms);
+		//imageIndexed.camera.ComposeP();
 
 		for (size_t i = 0; i < groundPointVec.size(); i++)
 		{
@@ -164,7 +192,7 @@ bool SceneDevide::ImageCrop(
 				imageIndexToSave.push_back(imageIndex);
 				matcher.insert(pair<int, int>(imageIndex, imageIndexToSave.size() - 1));
 			//
-			cout << minX << endl << minY << endl << maxX << endl << maxY << endl;
+			//cout << minX << endl << minY << endl << maxX << endl << maxY << endl;
 			//
 				cv::Mat subImage = image(cv::Rect(minX, minY, maxX - minX, maxY - minY));
 				//creat output path
@@ -179,21 +207,23 @@ bool SceneDevide::ImageCrop(
 				cv::imwrite(imageOutputName, subImage);
 			}
 
-			cout << imageIndexed.name << " " << minX << " " << minY << endl;
-			cout << _pScene->platforms[imageIndexed.platformID].cameras[0].K(0, 2);
+			//cout << imageIndexed.name << " " << minX << " " << minY << endl;
+			//cout << _pScene->platforms[imageIndexed.platformID].cameras[imageIndexed.cameraID].K(0, 2);
 
 			double valueMax = maxX - minX > maxY - minY ? maxX - minX : maxY - minY;
-			double deltX = (xo - minX) / valueMax - _pScene->platforms[imageIndexed.platformID].cameras[0].K(0, 2);
-			double deltY = (yo - minY) / valueMax - _pScene->platforms[imageIndexed.platformID].cameras[0].K(1, 2);
+			double deltX = (xo - minX) / valueMax - _pScene->platforms[imageIndexed.platformID].cameras[imageIndexed.cameraID].K(0, 2);
+			double deltY = (yo - minY) / valueMax - _pScene->platforms[imageIndexed.platformID].cameras[imageIndexed.cameraID].K(1, 2);
 			//double deltX = - minX / imageWidth ;
 			//double deltY = - minY / imageWidth;
 
-			scene.platforms[imageIndexed.platformID].cameras[0].UpdatePrincipalPoint(Point2(deltX, deltY));
 
-			//cout << scene.platforms[imageIndexed.platformID].cameras[0].K << endl; getchar();
-			double focalOld = _pScene->platforms[imageIndexed.platformID].cameras[0].K(0, 0);
+			//std::cout << imageIndexed.name << endl << imageIndexed.platformID << endl << imageIndexed.cameraID << endl; getchar();
+			scene.platforms[imageIndexed.platformID].cameras[imageIndexed.cameraID].UpdatePrincipalPoint(Point2(deltX, deltY));
+
+			//cout << scene.platforms[imageIndexed.platformID].cameras[imageIndexed.cameraID].K << endl; getchar();
+			double focalOld = _pScene->platforms[imageIndexed.platformID].cameras[imageIndexed.cameraID].K(0, 0);
 			double focalNew = focalOld*imageWidth / valueMax;	// FIXME: wether this expression hold for image which height is bigger than width
-			scene.platforms[imageIndexed.platformID].cameras[0].UpdateFocalLengthAbs(focalNew);
+			scene.platforms[imageIndexed.platformID].cameras[imageIndexed.cameraID].UpdateFocalLengthAbs(focalNew);
 
 			imageIndexed.width = maxX - minX;
 			imageIndexed.height = maxY - minY;
@@ -211,35 +241,27 @@ bool SceneDevide::ImageCrop(
 	}
 
 	//update image's neighbor image
-	int imageIndex(0);
-	for (auto imageIndexed = scene.images.begin(); imageIndexed != scene.images.end(); imageIndexed++, imageIndex++)
-	{
-
-		for (auto neighborIndexed = imageIndexed->neighbors.begin() ; neighborIndexed !=imageIndexed->neighbors.end(); neighborIndexed++)
-		{
-			cout << _pScene->images[neighborIndexed->idx.ID].name << endl;
-			auto pos = matcher.find(neighborIndexed->idx.ID);
-			if (pos == matcher.end())
-			{
-				auto oneAfterCurrent = neighborIndexed++;
-				neighborIndexed--;		//FIXME: a little stupid
-				imageIndexed->neighbors.Remove(*neighborIndexed);
-				neighborIndexed = oneAfterCurrent;
-			}
-			else
-			{
-				//cout << _pScene->images[neighborIndexed->idx.ID].name << endl
-				//	<< scene.images[matcher.at(neighborIndexed->idx.ID)].name << endl;
-
-				//cout << scene.images[matcher.at(neighborIndexed->idx.ID)].camera.K << endl << endl
-				//	<< _pScene->images[matcher.at(neighborIndexed->idx.ID)].camera.K << endl << endl;
-				//cout << _pScene->images[matcher.at(neighborIndexed->idx.ID)].camera.K - scene.images[matcher.at(neighborIndexed->idx.ID)].camera.K << endl;
-				//getchar();
-				neighborIndexed->idx.ID = matcher.at(neighborIndexed->idx.ID);
-				
-			}
-		}
-	}
+	//int imageIndex(0);
+	//for (auto imageIndexed = scene.images.begin(); imageIndexed != scene.images.end(); imageIndexed++, imageIndex++)
+	//{
+	//	const int neighborSize = imageIndexed->neighbors.size();
+	//	for (size_t neighborIndex = 0; neighborIndex < neighborSize; neighborIndex++)
+	//	{
+	//		auto &neighbor = imageIndexed->neighbors[neighborIndex];
+	//		auto pos = matcher.find(neighbor.idx.ID);
+	//		if (pos == matcher.end())
+	//		{
+	//			imageIndexed->neighbors.RemoveAt(neighborIndex);
+	//		}
+	//		else
+	//		{
+	//			//cout << _pScene->images[imageIndexed->neighbors[neighborIndex].idx.ID].name << endl
+	//			//	<< scene.images[matcher.at(imageIndexed->neighbors[neighborIndex].idx.ID)].name << endl;
+	//			neighbor.idx.ID = matcher.at(neighbor.idx.ID);
+	//			//getchar();
+	//		}
+	//	}
+	//}
 	return true;
 }
 
@@ -287,23 +309,36 @@ bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int
 		++pointView,/* ++pointNormal,*/ ++pointColor, ++pointWeight;
 
 	}
-	for (auto pointView = scene.pointcloud.pointViews.begin(); pointView != scene.pointcloud.pointViews.end(); pointView++)
-	{
-		for (auto viewIndex = pointView->begin(); viewIndex != pointView->end(); viewIndex++)
-		{
-			auto pos = matcher.find(*viewIndex);
-			if (pos == matcher.end())
-			{
-				auto oneAfterCurrent = viewIndex++;
-				viewIndex--;		//FIXME: a little stupid
-				pointView->Remove(*viewIndex);
-				viewIndex = oneAfterCurrent;
-			}
-			else
-			{
-				*viewIndex = matcher.at(*viewIndex);
-			}
-		}
-	}
+	//for (auto pointView = scene.pointcloud.pointViews.begin(); pointView != scene.pointcloud.pointViews.end(); pointView++)
+	//{
+	//	const int viewSize = pointView->size();
+	//	for (size_t viewIndex = 0; viewIndex < viewSize; viewIndex++)
+	//	{
+	//		auto pos = matcher.find(viewIndex);
+	//		if (pos==matcher.end())
+	//		{
+	//			pointView->RemoveAt(viewIndex);
+	//		}
+	//		else
+	//		{
+	//			pointView[viewIndex] = matcher.at(viewIndex);
+	//		}
+	//	}
+	//	//for (auto viewIndex = pointView->begin(); viewIndex != pointView->end(); viewIndex++)
+	//	//{
+	//	//	auto pos = matcher.find(*viewIndex);
+	//	//	if (pos == matcher.end())
+	//	//	{
+	//	//		auto oneAfterCurrent = viewIndex++;
+	//	//		viewIndex--;		//FIXME: a little stupid
+	//	//		pointView->Remove(*viewIndex);
+	//	//		viewIndex = oneAfterCurrent;
+	//	//	}
+	//	//	else
+	//	//	{
+	//	//		*viewIndex = matcher.at(*viewIndex);
+	//	//	}
+	//	//}
+	//}
 	return true;
 }

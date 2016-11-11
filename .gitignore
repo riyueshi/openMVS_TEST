@@ -246,3 +246,7 @@ ModelManifest.xml
 /openMVS_TEST/imageCrop
 /openMVS_TEST/test.ply
 /openMVS_TEST/test.mvs
+/openMVS_TEST/sceneInprocess.txt
+/openMVS_TEST/sceneImageCroped.txt
+/openMVS_TEST/sceneImageCroped - 副本.txt
+/openMVS_TEST/sceneImage.txt

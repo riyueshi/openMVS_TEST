@@ -18,6 +18,59 @@ int main(int argc, LPCTSTR* argv)
 		return EXIT_FAILURE;
 	}
 
+
+	{
+		Camera camPlatform1 = scene.platforms[0].cameras[0];
+		Camera camPlatform2 = scene.platforms[1].cameras[0];
+		Camera camPlatform3 = scene.platforms[2].cameras[0];
+		Camera camPlatform4 = scene.platforms[3].cameras[0];
+		Camera camPlatform5 = scene.platforms[4].cameras[0];
+
+		for (size_t i = 0; i < 4; i++)
+		{
+			scene.platforms[0].cameras.push_back(camPlatform1);
+		}
+		for (size_t i = 0; i < 3; i++)
+		{
+			scene.platforms[1].cameras.push_back(camPlatform2);
+		}
+		for (size_t i = 0; i < 3; i++)
+		{
+			scene.platforms[2].cameras.push_back(camPlatform3);
+		}
+		for (size_t i = 0; i < 3; i++)
+		{
+			scene.platforms[3].cameras.push_back(camPlatform4);
+		}
+		for (size_t i = 0; i < 4; i++)
+		{
+			scene.platforms[4].cameras.push_back(camPlatform5);
+		}
+
+
+		for (size_t i = 0; i < 4; i++)
+		{
+			scene.images[i].cameraID = i;
+		}
+		for (size_t i = 4,j=0; i < 7; i++,j++)
+		{
+			scene.images[i].cameraID = j;
+		}
+		for (size_t i = 7, j = 0; i < 10; i++, j++)
+		{
+			scene.images[i].cameraID = j;
+		}
+		for (size_t i = 10, j = 0; i < 13; i++, j++)
+		{
+			scene.images[i].cameraID = j;
+		}
+		for (size_t i = 13, j = 0; i <17; i++, j++)
+		{
+			scene.images[i].cameraID = j;
+		}
+
+	}
+
 	SceneDevide processer(&scene);
 	processer.SceneDevideProcess();
 	
