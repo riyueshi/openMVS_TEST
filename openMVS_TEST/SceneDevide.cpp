@@ -58,7 +58,7 @@ bool SceneDevide::SceneDevideProcess()
 		const double avgHeight(0.3500);
 		std::map<int, int> matcher;
 		string imagePath("imageCrop\\");
-		
+
 		this->ImageCrop(range, imagePath, avgHeight, matcher, scene);
 		this->PointCloudCrop(range, matcher, scene);
 
@@ -177,7 +177,7 @@ bool SceneDevide::ImageCrop(
 				continue;
 			}
 
-			string imageName =string("F:/MillerWorkPath/mvsWorkPathGCP/")+ imageIndexed.name; //FIXME: image path specific
+			string imageName = string("F:/MillerWorkPath/mvsWorkPathGCP/") + imageIndexed.name; //FIXME: image path specific
 			string imageOutputName = imagePath + "/" + imageName.substr(imageName.find_last_of('/'), imageName.length() - imageName.find_last_of('/'));
 
 			if (writeImageTag)
@@ -191,9 +191,9 @@ bool SceneDevide::ImageCrop(
 				}
 				imageIndexToSave.push_back(imageIndex);
 				matcher.insert(pair<int, int>(imageIndex, imageIndexToSave.size() - 1));
-			//
-			//cout << minX << endl << minY << endl << maxX << endl << maxY << endl;
-			//
+				//
+				//cout << minX << endl << minY << endl << maxX << endl << maxY << endl;
+				//
 				cv::Mat subImage = image(cv::Rect(minX, minY, maxX - minX, maxY - minY));
 				//creat output path
 				if (!stlplus::folder_exists(imagePath + "\\"))
@@ -241,33 +241,33 @@ bool SceneDevide::ImageCrop(
 	}
 
 	//update image's neighbor image
-	//int imageIndex(0);
-	//for (auto imageIndexed = scene.images.begin(); imageIndexed != scene.images.end(); imageIndexed++, imageIndex++)
-	//{
-	//	const int neighborSize = imageIndexed->neighbors.size();
-	//	for (size_t neighborIndex = 0; neighborIndex < neighborSize; neighborIndex++)
-	//	{
-	//		auto &neighbor = imageIndexed->neighbors[neighborIndex];
-	//		auto pos = matcher.find(neighbor.idx.ID);
-	//		if (pos == matcher.end())
-	//		{
-	//			imageIndexed->neighbors.RemoveAt(neighborIndex);
-	//		}
-	//		else
-	//		{
-	//			//cout << _pScene->images[imageIndexed->neighbors[neighborIndex].idx.ID].name << endl
-	//			//	<< scene.images[matcher.at(imageIndexed->neighbors[neighborIndex].idx.ID)].name << endl;
-	//			neighbor.idx.ID = matcher.at(neighbor.idx.ID);
-	//			//getchar();
-	//		}
-	//	}
-	//}
+	int imageIndex(0);
+	for (auto imageIndexed = scene.images.begin(); imageIndexed != scene.images.end(); imageIndexed++, imageIndex++)
+	{
+		const int neighborSize = imageIndexed->neighbors.size();
+		for (size_t neighborIndex = 0; neighborIndex < neighborSize; neighborIndex++)
+		{
+			auto &neighbor = imageIndexed->neighbors[neighborIndex];
+			auto pos = matcher.find(neighbor.idx.ID);
+			if (pos == matcher.end())
+			{
+				imageIndexed->neighbors.RemoveAt(neighborIndex);
+			}
+			else
+			{
+				//cout << _pScene->images[imageIndexed->neighbors[neighborIndex].idx.ID].name << endl
+				//	<< scene.images[matcher.at(imageIndexed->neighbors[neighborIndex].idx.ID)].name << endl;
+				neighbor.idx.ID = matcher.at(neighbor.idx.ID);
+				//getchar();
+			}
+		}
+	}
 	return true;
 }
 
 bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int, int>& matcher, MVS::Scene & scene)
 {
-	if (_pScene->pointcloud.GetSize()==0)
+	if (_pScene->pointcloud.GetSize() == 0)
 	{
 		std::cout << "Error: Enmpty point cloud in scene" << endl;
 		return false;
@@ -279,10 +279,10 @@ bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int
 		<< _pScene->pointcloud.colors.size() << endl
 		<< _pScene->pointcloud.pointWeights.size() << endl << endl;
 
-	if (_pScene->pointcloud.points.size() != _pScene->pointcloud.pointViews.size()||
+	if (_pScene->pointcloud.points.size() != _pScene->pointcloud.pointViews.size() ||
 		//_pScene->pointcloud.points.size() != _pScene->pointcloud.normals.size() ||
 		_pScene->pointcloud.points.size() != _pScene->pointcloud.colors.size() ||
-		_pScene->pointcloud.points.size() != _pScene->pointcloud.pointWeights.size() )
+		_pScene->pointcloud.points.size() != _pScene->pointcloud.pointWeights.size())
 	{
 		std::cout << "Error: Invalid point cloud in scene" << endl;
 		return false;
@@ -309,36 +309,28 @@ bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int
 		++pointView,/* ++pointNormal,*/ ++pointColor, ++pointWeight;
 
 	}
-	//for (auto pointView = scene.pointcloud.pointViews.begin(); pointView != scene.pointcloud.pointViews.end(); pointView++)
-	//{
-	//	const int viewSize = pointView->size();
-	//	for (size_t viewIndex = 0; viewIndex < viewSize; viewIndex++)
-	//	{
-	//		auto pos = matcher.find(viewIndex);
-	//		if (pos==matcher.end())
-	//		{
-	//			pointView->RemoveAt(viewIndex);
-	//		}
-	//		else
-	//		{
-	//			pointView[viewIndex] = matcher.at(viewIndex);
-	//		}
-	//	}
-	//	//for (auto viewIndex = pointView->begin(); viewIndex != pointView->end(); viewIndex++)
-	//	//{
-	//	//	auto pos = matcher.find(*viewIndex);
-	//	//	if (pos == matcher.end())
-	//	//	{
-	//	//		auto oneAfterCurrent = viewIndex++;
-	//	//		viewIndex--;		//FIXME: a little stupid
-	//	//		pointView->Remove(*viewIndex);
-	//	//		viewIndex = oneAfterCurrent;
-	//	//	}
-	//	//	else
-	//	//	{
-	//	//		*viewIndex = matcher.at(*viewIndex);
-	//	//	}
-	//	//}
-	//}
+	for (auto pointView = scene.pointcloud.pointViews.begin(); pointView != scene.pointcloud.pointViews.end(); pointView++)
+	{
+		const int viewSize = pointView->size();
+		std::vector<int> viewIndeVec;
+		for (size_t viewIndex = 0; viewIndex < viewSize; viewIndex++)
+		{
+			auto pos = matcher.find(viewIndex);
+			if (pos == matcher.end())
+			{
+				viewIndeVec.push_back(viewIndex);
+			}
+			else
+			{
+				//cout << (*pointView)[viewIndex]; getchar();
+				(*pointView)[viewIndex] = matcher.at((*pointView)[viewIndex]);
+			}
+		}
+		//
+		for (size_t viewIndex = viewIndeVec.size() - 1; viewIndex > -1; viewIndex--)
+		{
+			pointView->RemoveAt(viewIndeVec.at(viewIndex));
+		}
+	}
 	return true;
 }
