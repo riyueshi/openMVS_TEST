@@ -30,7 +30,10 @@ public:
 
 
 	bool InitialParams();
+	bool SaveDevidedScenes();
 	bool SceneDevideProcess();
+	bool ImageProcess();
+	bool PointsCouldProcess();
 	bool ImageCrop(const std::vector<Point2d>& range,
 		const std::string & imagePath,
 		const double & averageHeight,
@@ -43,11 +46,14 @@ public:
 
 	typedef TPoint2<double> Point2d;
 	std::vector<MVS::Scene> scenes;
-	Point2d upLeftBoundary;
-	Point2d bottomRightBoundary;
-	unsigned int numOfSences;
+	Point2d boundaryMinXY;
+	Point2d boundaryMaxXY;
+	unsigned int numOfScenes;
+	unsigned int numOfScenesInX;
+	unsigned int numOfScenesInY;
 	int scaleParam;
-	double bufferRange;
+	double averageHeight;
+	double bufferRange;	// in percentage
 	double sceneSizeX;
 	double sceneSizeY;
 	std::vector<std::vector<Point2d>> sceneRange;

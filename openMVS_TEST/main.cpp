@@ -19,8 +19,21 @@ int main(int argc, LPCTSTR* argv)
 
 	SceneDevide::UniqueImageCamera(scene);
 	SceneDevide processer(&scene);
-	processer.SceneDevideProcess();
-	
+	processer.workPath = "F:\\MillerWorkPath\\VSProject\\WorkPath";
+	processer.numOfScenesInX = 2;
+	processer.numOfScenesInY = 2;
+	processer.boundaryMinXY = Point2d(-4.3535, -4.55049);
+	processer.boundaryMaxXY = Point2d(3.8695, 3.9030);
+	processer.InitialParams();
+	//processer.SceneDevideProcess();
+	if (!processer.ImageProcess())
+	{
+		std::cout << "failed to process image" << std::endl;
+		getchar();
+	}
+	processer.PointsCouldProcess();
+	processer.SaveDevidedScenes();
+	//getchar();
 	return EXIT_SUCCESS;
 }
 /*----------------------------------------------------------------*/

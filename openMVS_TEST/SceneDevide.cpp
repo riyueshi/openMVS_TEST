@@ -35,36 +35,34 @@ bool ShowImageInfo(const MVS::Scene &scene, std::string fileName)
 bool SceneDevide::UniqueImageCamera(MVS::Scene &scene)
 {
 	const int numOfPlatform = scene.platforms.size();
-	//check scene contaions only 1 canera in each platform
+	//check wheather the scene contaions only 1 camera in each platform
 	for (size_t i = 0; i < numOfPlatform; i++)
 	{
 		if (scene.platforms[i].cameras.size() != 1)
 		{
 			cout << "Error: failed to unique image camera" << endl;
+			getchar();
 			return false;
 		}
 	}
-
 	vector<vector<int>> cameraIndex;
 	cameraIndex.resize(numOfPlatform);
 	for (size_t imageIndex = 0; imageIndex < scene.images.size(); imageIndex++)
 	{
 		cameraIndex.at(scene.images[imageIndex].platformID).push_back(imageIndex);
 	}
-
 	for (size_t platformIndex = 0; platformIndex < numOfPlatform; platformIndex++)
 	{
 		Camera cam = scene.platforms[platformIndex].cameras[0];
 		for (size_t index = 0; index < cameraIndex.at(platformIndex).size(); index++)
 		{
-			if (index!=0)
+			if (index != 0)
 			{
 				scene.platforms[platformIndex].cameras.push_back(cam);
 			}
 			scene.images[cameraIndex.at(platformIndex).at(index)].cameraID = index;
 		}
 	}
-
 	return true;
 }
 
@@ -79,7 +77,38 @@ SceneDevide::~SceneDevide()
 
 bool SceneDevide::InitialParams()
 {
-	return false;
+	if (numOfScenesInX == 0 || numOfScenesInY == 0)
+	{
+		cout << "please specific the number of scene in both x and y direcition" << endl;
+		getchar();
+		return false;
+	}
+	sceneSizeX = (boundaryMaxXY.x - boundaryMinXY.x) / numOfScenesInX;
+	sceneSizeY = (boundaryMaxXY.y - boundaryMinXY.y) / numOfScenesInY;
+	numOfScenes = numOfScenesInX*numOfScenesInY;
+	scenes.resize(numOfScenes);
+	for (size_t sceneIndex = 0; sceneIndex < scenes.size(); sceneIndex++)
+	{
+		scenes.at(sceneIndex).platforms = (*_pScene).platforms;
+	}
+	imageIndexMatcher.resize(numOfScenes);
+
+	bufferRange = 0.1;
+	averageHeight = 0.3500;
+	return true;
+}
+
+bool SceneDevide::SaveDevidedScenes()
+{
+	for (size_t sceneIndex = 0; sceneIndex < scenes.size(); sceneIndex++)
+	{
+		string pointsFileName = workPath + "\\block_" + std::to_string(sceneIndex) + ".ply";
+		string sceneFileName = workPath + "\\block_" + std::to_string(sceneIndex) + ".mvs";
+
+		scenes.at(sceneIndex).Save(sceneFileName);
+		scenes.at(sceneIndex).pointcloud.Save(pointsFileName);
+	}
+	return true;
 }
 
 bool SceneDevide::SceneDevideProcess()
@@ -119,6 +148,184 @@ bool SceneDevide::SceneDevideProcess()
 	return true;
 }
 
+bool SceneDevide::ImageProcess()
+{
+	for (size_t indexY = 0; indexY < numOfScenesInY; indexY++)
+	{
+		for (size_t indexX = 0; indexX < numOfScenesInX; indexX++)
+		{
+			vector<Point2d> range;
+			Point2d rangeMin, rangeMax;
+			rangeMin.x = (indexX - bufferRange)*sceneSizeX;
+			rangeMin.y = (indexY - bufferRange)*sceneSizeY;
+			rangeMax.x = (indexX + 1 + bufferRange)*sceneSizeX;
+			rangeMax.y = (indexY + 1 + bufferRange)*sceneSizeY;
+			range.push_back(rangeMin);
+			range.push_back(rangeMax);
+			sceneRange.push_back(range);
+		}
+	}
+	int sceneIndex(0);
+	for (size_t indexY = 0; indexY < numOfScenesInY; indexY++)
+	{
+		for (size_t indexX = 0; indexX < numOfScenesInX; indexX++)
+		{
+			sceneIndex = indexY*numOfScenesInX+indexX;
+			string imagePath = workPath + "\\block_" + std::to_string(indexY)+ std::to_string(indexX);
+			ImageCrop(sceneRange.at(sceneIndex), imagePath, averageHeight, imageIndexMatcher.at(sceneIndex), scenes.at(sceneIndex));
+		}
+	}
+	//for (size_t sceneIndex = 0; sceneIndex < scenes.size(); sceneIndex++)
+	//{
+	//	string imagePath = workPath + "\\block_" + std::to_string(sceneIndex);
+	//	ImageCrop(sceneRange.at(sceneIndex), imagePath, averageHeight, imageIndexMatcher.at(sceneIndex), scenes.at(sceneIndex));
+	//}
+	return true;
+}
+
+bool SceneDevide::PointsCouldProcess()
+{
+	if (_pScene->pointcloud.GetSize() == 0)
+	{
+		std::cout << "Error: Enmpty point cloud in scene" << endl;
+		getchar();
+		return false;
+	}
+
+	if (_pScene->pointcloud.points.size() != _pScene->pointcloud.pointViews.size() ||
+		_pScene->pointcloud.points.size() != _pScene->pointcloud.colors.size() ||
+		_pScene->pointcloud.points.size() != _pScene->pointcloud.pointWeights.size())
+	{
+		std::cout << "Error: Invalid point cloud in scene" << endl;
+		getchar();
+		return false;
+	}
+
+	//FIXME: compare which is faster iterater or [] operation
+	auto pointView = _pScene->pointcloud.pointViews.begin();
+	auto pointColor = _pScene->pointcloud.colors.begin();
+	auto pointWeight = _pScene->pointcloud.pointWeights.begin();
+	for (auto point = _pScene->pointcloud.points.begin(); point != _pScene->pointcloud.points.end(); ++point)
+	{
+		int indexX = (point->x - boundaryMinXY.x) / sceneSizeX;
+		int indexY = (point->y - boundaryMinXY.y) / sceneSizeY;
+		if (point->x<boundaryMinXY.x || point->x>boundaryMaxXY.x || point->y<boundaryMinXY.y || point->y>boundaryMaxXY.y)
+		{
+			++pointView,/* ++pointNormal,*/ ++pointColor, ++pointWeight;
+			continue;
+		}
+		double remainderX = (point->x - boundaryMinXY.x - sceneSizeX*indexX) / sceneSizeX;
+		double remainderY = (point->y - boundaryMinXY.y - sceneSizeY*indexY) / sceneSizeY;
+
+		scenes.at(numOfScenesInX*indexY + indexX).pointcloud.points.push_back(*point);
+		scenes.at(numOfScenesInX*indexY + indexX).pointcloud.pointViews.push_back(*pointView);
+		scenes.at(numOfScenesInX*indexY + indexX).pointcloud.colors.push_back(*pointColor);
+		scenes.at(numOfScenesInX*indexY + indexX).pointcloud.pointWeights.push_back(*pointWeight);
+		if (indexX != 0)
+		{
+			if (remainderX < bufferRange)
+			{
+				if (remainderY < bufferRange&&indexY != 0)
+				{
+					scenes.at(numOfScenesInX*(indexY - 1) + indexX - 1).pointcloud.points.push_back(*point);
+					scenes.at(numOfScenesInX*(indexY - 1) + indexX - 1).pointcloud.pointViews.push_back(*pointView);
+					scenes.at(numOfScenesInX*(indexY - 1) + indexX - 1).pointcloud.colors.push_back(*pointColor);
+					scenes.at(numOfScenesInX*(indexY - 1) + indexX - 1).pointcloud.pointWeights.push_back(*pointWeight);
+				}
+				else if (remainderY > 1 - bufferRange&&indexY != numOfScenesInY - 1)
+				{
+					scenes.at(numOfScenesInX*(indexY + 1) + indexX - 1).pointcloud.points.push_back(*point);
+					scenes.at(numOfScenesInX*(indexY + 1) + indexX - 1).pointcloud.pointViews.push_back(*pointView);
+					scenes.at(numOfScenesInX*(indexY + 1) + indexX - 1).pointcloud.colors.push_back(*pointColor);
+					scenes.at(numOfScenesInX*(indexY + 1) + indexX - 1).pointcloud.pointWeights.push_back(*pointWeight);
+				}
+				scenes.at(numOfScenesInX*indexY + indexX - 1).pointcloud.points.push_back(*point);
+				scenes.at(numOfScenesInX*indexY + indexX - 1).pointcloud.pointViews.push_back(*pointView);
+				scenes.at(numOfScenesInX*indexY + indexX - 1).pointcloud.colors.push_back(*pointColor);
+				scenes.at(numOfScenesInX*indexY + indexX - 1).pointcloud.pointWeights.push_back(*pointWeight);
+			}
+		}
+		if (indexX != numOfScenesInX - 1)
+		{
+			if (remainderX > 1 - bufferRange)
+			{
+				if (remainderY > 1 - bufferRange&&indexY != numOfScenesInY - 1)
+				{
+					scenes.at(numOfScenesInX*(indexY + 1) + indexX + 1).pointcloud.points.push_back(*point);
+					scenes.at(numOfScenesInX*(indexY + 1) + indexX + 1).pointcloud.pointViews.push_back(*pointView);
+					scenes.at(numOfScenesInX*(indexY + 1) + indexX + 1).pointcloud.colors.push_back(*pointColor);
+					scenes.at(numOfScenesInX*(indexY + 1) + indexX + 1).pointcloud.pointWeights.push_back(*pointWeight);
+				}
+				else if (remainderY < bufferRange&&indexY != 0)
+				{
+					scenes.at(numOfScenesInX*(indexY - 1) + indexX + 1).pointcloud.points.push_back(*point);
+					scenes.at(numOfScenesInX*(indexY - 1) + indexX + 1).pointcloud.pointViews.push_back(*pointView);
+					scenes.at(numOfScenesInX*(indexY - 1) + indexX + 1).pointcloud.colors.push_back(*pointColor);
+					scenes.at(numOfScenesInX*(indexY - 1) + indexX + 1).pointcloud.pointWeights.push_back(*pointWeight);
+				}
+				scenes.at(numOfScenesInX*indexY + indexX + 1).pointcloud.points.push_back(*point);
+				scenes.at(numOfScenesInX*indexY + indexX + 1).pointcloud.pointViews.push_back(*pointView);
+				scenes.at(numOfScenesInX*indexY + indexX + 1).pointcloud.colors.push_back(*pointColor);
+				scenes.at(numOfScenesInX*indexY + indexX + 1).pointcloud.pointWeights.push_back(*pointWeight);
+			}
+		}
+		if (indexY != 0)
+		{
+			if (remainderY < bufferRange)
+			{
+				scenes.at(numOfScenesInX*(indexY - 1) + indexX).pointcloud.points.push_back(*point);
+				scenes.at(numOfScenesInX*(indexY - 1) + indexX).pointcloud.pointViews.push_back(*pointView);
+				scenes.at(numOfScenesInX*(indexY - 1) + indexX).pointcloud.colors.push_back(*pointColor);
+				scenes.at(numOfScenesInX*(indexY - 1) + indexX).pointcloud.pointWeights.push_back(*pointWeight);
+			}
+		}
+		if (indexY != numOfScenesInY - 1)
+		{
+			if (remainderY > 1 - bufferRange)
+			{
+				scenes.at(numOfScenesInX*(indexY + 1) + indexX).pointcloud.points.push_back(*point);
+				scenes.at(numOfScenesInX*(indexY + 1) + indexX).pointcloud.pointViews.push_back(*pointView);
+				scenes.at(numOfScenesInX*(indexY + 1) + indexX).pointcloud.colors.push_back(*pointColor);
+				scenes.at(numOfScenesInX*(indexY + 1) + indexX).pointcloud.pointWeights.push_back(*pointWeight);
+			}
+		}
+		++pointView,/* ++pointNormal,*/ ++pointColor, ++pointWeight;
+	}
+
+	for (size_t sceneIndex = 0; sceneIndex < scenes.size(); sceneIndex++)
+	{
+		for (auto pointView = scenes.at(sceneIndex).pointcloud.pointViews.begin(); pointView != scenes.at(sceneIndex).pointcloud.pointViews.end(); pointView++)
+		{
+			const int viewSize = pointView->size();
+			std::vector<int> viewIndeVec;
+			for (size_t viewIndex = 0; viewIndex < viewSize; viewIndex++)
+			{
+				auto pos = imageIndexMatcher.at(sceneIndex).find((*pointView)[viewIndex]);
+				if (pos == imageIndexMatcher.at(sceneIndex).end())
+				{
+					viewIndeVec.push_back(viewIndex);
+				}
+				else
+				{
+					//	cout << "point view size: " << pointView->size() << endl
+					//		<< "view index: " << viewIndex << endl
+					//		<< "scene index: " << sceneIndex << endl
+					//		<< "matcher size: " << imageIndexMatcher.size();
+					//	cout << (*pointView)[viewIndex]; 
+					//	getchar();
+					(*pointView)[viewIndex] = imageIndexMatcher.at(sceneIndex).at((*pointView)[viewIndex]);
+				}
+			}
+			//
+			for (size_t viewIndex = viewIndeVec.size() - 1; viewIndex > -1; viewIndex--)
+			{
+				pointView->RemoveAt(viewIndeVec.at(viewIndex));
+			}
+		}
+	}
+	return true;
+}
+
 
 bool SceneDevide::ImageCrop(
 	const std::vector<Point2d>& range,
@@ -148,6 +355,7 @@ bool SceneDevide::ImageCrop(
 	if (_pScene->images.size() == 0)
 	{
 		cout << "Error: no valid images in scene!" << endl;
+		getchar();
 		return false;
 	}
 
@@ -238,6 +446,7 @@ bool SceneDevide::ImageCrop(
 					if (!stlplus::folder_create(imagePath + "\\"))
 					{
 						std::cerr << "\nCannot create output directory " << imagePath + "\\" << std::endl;
+						getchar();
 						return false;
 					}
 				}
@@ -307,6 +516,7 @@ bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int
 	if (_pScene->pointcloud.GetSize() == 0)
 	{
 		std::cout << "Error: Enmpty point cloud in scene" << endl;
+		getchar();
 		return false;
 	}
 
@@ -322,6 +532,7 @@ bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int
 		_pScene->pointcloud.points.size() != _pScene->pointcloud.pointWeights.size())
 	{
 		std::cout << "Error: Invalid point cloud in scene" << endl;
+		getchar();
 		return false;
 	}
 
