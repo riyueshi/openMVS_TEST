@@ -10,13 +10,13 @@ int main(int argc, LPCTSTR* argv)
 
 	Scene scene;
 	// load and estimate a dense point-cloud
-	if (!scene.Load("F:\\MillerWorkPath\\mvsWorkPathGCP\\scene_dense.mvs"))
+	if (!scene.Load("F:\\MillerWorkPath\\mvsWorkPathGCPSparse\\scene_dense.mvs"))
 		return EXIT_FAILURE;
 	if (scene.pointcloud.IsEmpty()) {
 		VERBOSE("error: empty initial point-cloud");
 		return EXIT_FAILURE;
 	}
-
+	std::cout << scene.images.size() << std::endl;
 	SceneDevide::UniqueImageCamera(scene);
 	SceneDevide processer(&scene);
 	processer.workPath = "F:\\MillerWorkPath\\VSProject\\WorkPath";
@@ -25,15 +25,24 @@ int main(int argc, LPCTSTR* argv)
 	processer.boundaryMinXY = Point2d(-4.3535, -4.55049);
 	processer.boundaryMaxXY = Point2d(3.8695, 3.9030);
 	processer.InitialParams();
+	std::cout << processer.scenes.at(0).images.size() << std::endl;
 	//processer.SceneDevideProcess();
-	if (!processer.ImageProcess())
+	processer.ImageProcess();
+	std::cout << processer.scenes.at(0).images.size() << std::endl;
+	for (size_t i = 0; i < 4; i++)
 	{
-		std::cout << "failed to process image" << std::endl;
-		getchar();
+		std::cout << processer.sceneRange.at(i).at(0) << " "<< processer.sceneRange.at(i).at(1) << std::endl;
 	}
-	processer.PointsCouldProcess();
-	processer.SaveDevidedScenes();
-	//getchar();
+	//processer.PointsCouldProcess();
+	for (size_t sceneIndex = 0; sceneIndex < processer.scenes.size(); sceneIndex++)
+	{
+		processer.PointCloudCrop(processer.sceneRange.at(sceneIndex), processer.imageIndexMatcher.at(sceneIndex), processer.scenes.at(sceneIndex));
+	}
+	processer.SaveDevidedPointCould();
+	std::cout << processer.scenes.at(0).images.size() << std::endl;
+
+	std::cout << "scene subdevide finished, press to exit" << std::endl;
+	getchar();
 	return EXIT_SUCCESS;
 }
 /*----------------------------------------------------------------*/

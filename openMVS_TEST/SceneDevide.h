@@ -30,7 +30,7 @@ public:
 
 
 	bool InitialParams();
-	bool SaveDevidedScenes();
+	bool SaveDevidedPointCould();
 	bool SceneDevideProcess();
 	bool ImageProcess();
 	bool PointsCouldProcess();
@@ -61,7 +61,7 @@ public:
 	std::string workPath;
 	const MVS::Scene *_pScene;	
 
-	const static int imageWidth;
-	const static int imageHeight;
+	static int imageWidth;
+	static int imageHeight;
 };
 

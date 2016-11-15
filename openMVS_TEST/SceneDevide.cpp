@@ -7,8 +7,8 @@ using namespace MVS;
 
 //const int SceneDevide::imageWidth = 8176;
 //const int SceneDevide::imageHeight = 6132;
-const int SceneDevide::imageWidth = 4088;
-const int SceneDevide::imageHeight = 3066;
+int SceneDevide::imageWidth;
+int SceneDevide::imageHeight;
 //const int SceneDevide::imageWidth = 1022;
 //const int SceneDevide::imageHeight = 766;
 
@@ -41,7 +41,6 @@ bool SceneDevide::UniqueImageCamera(MVS::Scene &scene)
 		if (scene.platforms[i].cameras.size() != 1)
 		{
 			cout << "Error: failed to unique image camera" << endl;
-			getchar();
 			return false;
 		}
 	}
@@ -80,7 +79,6 @@ bool SceneDevide::InitialParams()
 	if (numOfScenesInX == 0 || numOfScenesInY == 0)
 	{
 		cout << "please specific the number of scene in both x and y direcition" << endl;
-		getchar();
 		return false;
 	}
 	sceneSizeX = (boundaryMaxXY.x - boundaryMinXY.x) / numOfScenesInX;
@@ -90,23 +88,26 @@ bool SceneDevide::InitialParams()
 	for (size_t sceneIndex = 0; sceneIndex < scenes.size(); sceneIndex++)
 	{
 		scenes.at(sceneIndex).platforms = (*_pScene).platforms;
+		//scenes.at(sceneIndex)
 	}
 	imageIndexMatcher.resize(numOfScenes);
 
 	bufferRange = 0.1;
 	averageHeight = 0.3500;
+	imageWidth = 4088;
+	imageHeight = 3066;
+
 	return true;
 }
 
-bool SceneDevide::SaveDevidedScenes()
+bool SceneDevide::SaveDevidedPointCould()
 {
 	for (size_t sceneIndex = 0; sceneIndex < scenes.size(); sceneIndex++)
 	{
-		string pointsFileName = workPath + "\\block_" + std::to_string(sceneIndex) + ".ply";
-		string sceneFileName = workPath + "\\block_" + std::to_string(sceneIndex) + ".mvs";
-
-		scenes.at(sceneIndex).Save(sceneFileName);
-		scenes.at(sceneIndex).pointcloud.Save(pointsFileName);
+		string fileName = workPath + "\\pointcould_" + std::to_string(sceneIndex) + ".ply";
+		scenes.at(sceneIndex).pointcloud.Save(fileName);
+		string sceneName = workPath + "\\block_" + std::to_string(sceneIndex) + ".mvs";
+		scenes.at(sceneIndex).Save(sceneName);
 	}
 	return true;
 }
@@ -123,7 +124,7 @@ bool SceneDevide::SceneDevideProcess()
 		range.push_back(Point2d(0.5879, 1.0688));
 		const double avgHeight(0.3500);
 		std::map<int, int> matcher;
-		string imagePath("imageCrop\\");
+		string imagePath("F:\\MillerWorkPath\\VSProject\\openMVS_TEST\\openMVS_TEST\\imageCrop\\imageCrop\\");
 
 		this->ImageCrop(range, imagePath, avgHeight, matcher, scene);
 		this->PointCloudCrop(range, matcher, scene);
@@ -133,8 +134,8 @@ bool SceneDevide::SceneDevideProcess()
 		scene.Save("test.mvs");
 		scene.pointcloud.Save("test.ply");
 
-		ShowImageInfo(scene, "sceneImageCroped.txt");
-		ShowImageInfo(*_pScene, "sceneImage.txt");
+		//ShowImageInfo(scene, "sceneImageCroped.txt");
+		//ShowImageInfo(*_pScene, "sceneImage.txt");
 		//for (size_t i = 0; i < _pScene->images[0].neighbors.size(); i++)
 		//{
 		//	cout << _pScene->images[_pScene->images[0].neighbors[i].idx.ID].name << endl;
@@ -156,10 +157,10 @@ bool SceneDevide::ImageProcess()
 		{
 			vector<Point2d> range;
 			Point2d rangeMin, rangeMax;
-			rangeMin.x = (indexX - bufferRange)*sceneSizeX;
-			rangeMin.y = (indexY - bufferRange)*sceneSizeY;
-			rangeMax.x = (indexX + 1 + bufferRange)*sceneSizeX;
-			rangeMax.y = (indexY + 1 + bufferRange)*sceneSizeY;
+			rangeMin.x = boundaryMinXY.x + (indexX - bufferRange)*sceneSizeX;
+			rangeMin.y = boundaryMinXY.y + (indexY - bufferRange)*sceneSizeY;
+			rangeMax.x = boundaryMinXY.x + (indexX + 1 + bufferRange)*sceneSizeX;
+			rangeMax.y = boundaryMinXY.y + (indexY + 1 + bufferRange)*sceneSizeY;
 			range.push_back(rangeMin);
 			range.push_back(rangeMax);
 			sceneRange.push_back(range);
@@ -171,15 +172,10 @@ bool SceneDevide::ImageProcess()
 		for (size_t indexX = 0; indexX < numOfScenesInX; indexX++)
 		{
 			sceneIndex = indexY*numOfScenesInX+indexX;
-			string imagePath = workPath + "\\block_" + std::to_string(indexY)+ std::to_string(indexX);
+			string imagePath = workPath + "\\block_" + std::to_string(indexY) + std::to_string(indexX);
 			ImageCrop(sceneRange.at(sceneIndex), imagePath, averageHeight, imageIndexMatcher.at(sceneIndex), scenes.at(sceneIndex));
 		}
 	}
-	//for (size_t sceneIndex = 0; sceneIndex < scenes.size(); sceneIndex++)
-	//{
-	//	string imagePath = workPath + "\\block_" + std::to_string(sceneIndex);
-	//	ImageCrop(sceneRange.at(sceneIndex), imagePath, averageHeight, imageIndexMatcher.at(sceneIndex), scenes.at(sceneIndex));
-	//}
 	return true;
 }
 
@@ -188,7 +184,6 @@ bool SceneDevide::PointsCouldProcess()
 	if (_pScene->pointcloud.GetSize() == 0)
 	{
 		std::cout << "Error: Enmpty point cloud in scene" << endl;
-		getchar();
 		return false;
 	}
 
@@ -197,7 +192,6 @@ bool SceneDevide::PointsCouldProcess()
 		_pScene->pointcloud.points.size() != _pScene->pointcloud.pointWeights.size())
 	{
 		std::cout << "Error: Invalid point cloud in scene" << endl;
-		getchar();
 		return false;
 	}
 
@@ -307,12 +301,12 @@ bool SceneDevide::PointsCouldProcess()
 				}
 				else
 				{
-					//	cout << "point view size: " << pointView->size() << endl
-					//		<< "view index: " << viewIndex << endl
-					//		<< "scene index: " << sceneIndex << endl
-					//		<< "matcher size: " << imageIndexMatcher.size();
-					//	cout << (*pointView)[viewIndex]; 
-					//	getchar();
+				//	cout << "point view size: " << pointView->size() << endl
+				//		<< "view index: " << viewIndex << endl
+				//		<< "scene index: " << sceneIndex << endl
+				//		<< "matcher size: " << imageIndexMatcher.size();
+				//	cout << (*pointView)[viewIndex]; 
+				//	getchar();
 					(*pointView)[viewIndex] = imageIndexMatcher.at(sceneIndex).at((*pointView)[viewIndex]);
 				}
 			}
@@ -355,7 +349,6 @@ bool SceneDevide::ImageCrop(
 	if (_pScene->images.size() == 0)
 	{
 		cout << "Error: no valid images in scene!" << endl;
-		getchar();
 		return false;
 	}
 
@@ -374,12 +367,12 @@ bool SceneDevide::ImageCrop(
 
 		//update the camera and compose the project matrix
 
-		//cout << imageIndexed.width << endl;
+		imageIndexed.width = imageWidth;
+		imageIndexed.height = imageHeight;
+		//cout << imageIndexed.scale << endl;
+		//cout << imageIndexed.width << endl << endl;
 		//getchar();
-		//imageIndexed.width = imageWidth;
-		//imageIndexed.height = imageHeight;
-		//imageIndexed.UpdateCamera(_pScene->platforms);
-		//imageIndexed.camera.ComposeP();
+		imageIndexed.UpdateCamera(_pScene->platforms);
 
 		for (size_t i = 0; i < groundPointVec.size(); i++)
 		{
@@ -446,7 +439,6 @@ bool SceneDevide::ImageCrop(
 					if (!stlplus::folder_create(imagePath + "\\"))
 					{
 						std::cerr << "\nCannot create output directory " << imagePath + "\\" << std::endl;
-						getchar();
 						return false;
 					}
 				}
@@ -516,7 +508,6 @@ bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int
 	if (_pScene->pointcloud.GetSize() == 0)
 	{
 		std::cout << "Error: Enmpty point cloud in scene" << endl;
-		getchar();
 		return false;
 	}
 
@@ -532,7 +523,6 @@ bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int
 		_pScene->pointcloud.points.size() != _pScene->pointcloud.pointWeights.size())
 	{
 		std::cout << "Error: Invalid point cloud in scene" << endl;
-		getchar();
 		return false;
 	}
 
@@ -557,28 +547,28 @@ bool SceneDevide::PointCloudCrop(const std::vector<Point2d>& range, std::map<int
 		++pointView,/* ++pointNormal,*/ ++pointColor, ++pointWeight;
 
 	}
-	for (auto pointView = scene.pointcloud.pointViews.begin(); pointView != scene.pointcloud.pointViews.end(); pointView++)
-	{
-		const int viewSize = pointView->size();
-		std::vector<int> viewIndeVec;
-		for (size_t viewIndex = 0; viewIndex < viewSize; viewIndex++)
-		{
-			auto pos = matcher.find(viewIndex);
-			if (pos == matcher.end())
-			{
-				viewIndeVec.push_back(viewIndex);
-			}
-			else
-			{
-				//cout << (*pointView)[viewIndex]; getchar();
-				(*pointView)[viewIndex] = matcher.at((*pointView)[viewIndex]);
-			}
-		}
-		//
-		for (size_t viewIndex = viewIndeVec.size() - 1; viewIndex > -1; viewIndex--)
-		{
-			pointView->RemoveAt(viewIndeVec.at(viewIndex));
-		}
-	}
+	//for (auto pointView = scene.pointcloud.pointViews.begin(); pointView != scene.pointcloud.pointViews.end(); pointView++)
+	//{
+	//	const int viewSize = pointView->size();
+	//	std::vector<int> viewIndeVec;
+	//	for (size_t viewIndex = 0; viewIndex < viewSize; viewIndex++)
+	//	{
+	//		auto pos = matcher.find(viewIndex);
+	//		if (pos == matcher.end())
+	//		{
+	//			viewIndeVec.push_back(viewIndex);
+	//		}
+	//		else
+	//		{
+	//			//cout << (*pointView)[viewIndex]; getchar();
+	//			(*pointView)[viewIndex] = matcher.at((*pointView)[viewIndex]);
+	//		}
+	//	}
+	//	//
+	//	for (size_t viewIndex = viewIndeVec.size() - 1; viewIndex > -1; viewIndex--)
+	//	{
+	//		pointView->RemoveAt(viewIndeVec.at(viewIndex));
+	//	}
+	//}
 	return true;
 }
