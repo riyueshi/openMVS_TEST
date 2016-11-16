@@ -94,8 +94,10 @@ bool SceneDevide::InitialParams()
 
 	bufferRange = 0.1;
 	averageHeight = 0.3500;
-	imageWidth = 4088;
-	imageHeight = 3066;
+	//imageWidth = 4088;
+	//imageHeight = 3066;
+	imageWidth = 8176;
+	imageHeight = 6132;
 
 	return true;
 }
@@ -415,7 +417,7 @@ bool SceneDevide::ImageCrop(
 				continue;
 			}
 
-			string imageName = string("F:/MillerWorkPath/mvsWorkPathGCP/") + imageIndexed.name; //FIXME: image path specific
+			string imageName = string("F:/MillerWorkPath/openMVSWorkPath47/") + imageIndexed.name; //FIXME: image path specific
 			string imageOutputName = imagePath + "/" + imageName.substr(imageName.find_last_of('/'), imageName.length() - imageName.find_last_of('/'));
 
 			if (writeImageTag)
@@ -483,13 +485,15 @@ bool SceneDevide::ImageCrop(
 	for (auto imageIndexed = scene.images.begin(); imageIndexed != scene.images.end(); imageIndexed++, imageIndex++)
 	{
 		const int neighborSize = imageIndexed->neighbors.size();
+		vector<int> imageIndexToRemove;
 		for (size_t neighborIndex = 0; neighborIndex < neighborSize; neighborIndex++)
 		{
 			auto &neighbor = imageIndexed->neighbors[neighborIndex];
 			auto pos = matcher.find(neighbor.idx.ID);
 			if (pos == matcher.end())
 			{
-				imageIndexed->neighbors.RemoveAt(neighborIndex);
+				imageIndexToRemove.push_back(neighborIndex);
+				//imageIndexed->neighbors.RemoveAt(neighborIndex);
 			}
 			else
 			{
@@ -499,6 +503,12 @@ bool SceneDevide::ImageCrop(
 				//getchar();
 			}
 		}
+		std::sort(imageIndexToRemove.begin(), imageIndexToRemove.end());
+		for (size_t i = imageIndexToRemove.size()-1; i >-1; i--)
+		{
+			imageIndexed->neighbors.RemoveAt(imageIndexToRemove.at(i));
+		}
+
 	}
 	return true;
 }
