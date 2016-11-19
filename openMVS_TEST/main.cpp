@@ -44,11 +44,11 @@ int main(int argc, LPCTSTR* argv)
 	{
 		std::cout << processer.sceneRange.at(i).at(0) << " "<< processer.sceneRange.at(i).at(1) << std::endl;
 	}
-	//processer.PointsCouldProcess();
-	for (size_t sceneIndex = 0; sceneIndex < processer.scenes.size(); sceneIndex++)
-	{
-		processer.PointCloudCrop(processer.sceneRange.at(sceneIndex), processer.imageIndexMatcher.at(sceneIndex), processer.scenes.at(sceneIndex));
-	}
+	processer.PointsCouldProcess();
+	//for (size_t sceneIndex = 0; sceneIndex < processer.scenes.size(); sceneIndex++)
+	//{
+	//	processer.PointCloudCrop(processer.sceneRange.at(sceneIndex), processer.imageIndexMatcher.at(sceneIndex), processer.scenes.at(sceneIndex));
+	//}
 	processer.SaveDevidedPointCould();
 	std::cout << processer.scenes.at(0).images.size() << std::endl;
 
