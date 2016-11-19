@@ -382,7 +382,7 @@ bool SceneDevide::ImageCrop(
 	bool writeImageTag(false);
 	vector<int> imageIndexToSave;
 
-	const double areaThreshold(10000);
+	const double areaThreshold(2000000);
 
 	vector<Vec4d> groundPointVec(4);
 	{
@@ -460,12 +460,12 @@ bool SceneDevide::ImageCrop(
 			//crop the image and update the images in the scene
 			double xo = imageIndexed.camera.K(0, 2);
 			double yo = imageIndexed.camera.K(1, 2);
-			if ((maxX - minX) < 500 || (maxY - minY) < 500)
+			if ((maxX - minX) < 1000 || (maxY - minY) < 1000)
 			{
 				continue;
 			}
 
-			string imageName = string("F:/MillerWorkPath/openMVSWorkPath47/") + imageIndexed.name; //FIXME: image path specific
+			string imageName = string("F:/MillerWorkPath/mvsWorkPathAuto303/") + imageIndexed.name; //FIXME: image path specific
 			string imageOutputName = imagePath + "/" + imageName.substr(imageName.find_last_of('/'), imageName.length() - imageName.find_last_of('/'));
 			imageIndexToSave.push_back(imageIndex);
 			matcher.insert(pair<int, int>(imageIndex, imageIndexToSave.size() - 1));
