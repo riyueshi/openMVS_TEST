@@ -201,23 +201,10 @@ bool SceneDevide::PointsCouldProcess()
 	auto pointView = _pScene->pointcloud.pointViews.begin();
 	auto pointColor = _pScene->pointcloud.colors.begin();
 	auto pointWeight = _pScene->pointcloud.pointWeights.begin();
-
-	long count(0);
 	for (auto point = _pScene->pointcloud.points.begin(); point != _pScene->pointcloud.points.end(); ++point)
 	{
-		count++;
 		int indexX = (point->x - boundaryMinXY.x) / sceneSizeX;
 		int indexY = (point->y - boundaryMinXY.y) / sceneSizeY;
-		if (indexX<0||indexY<0||indexX>numOfScenesInX-1||indexY>numOfScenesInY-1)
-		{
-			++pointView,/* ++pointNormal,*/ ++pointColor, ++pointWeight;
-			continue;
-		}
-		//if (count==5648776)
-		//{
-		//	cout << count << endl;
-		//	cout << indexX << endl << indexY << endl;
-		//}
 		if (point->x<boundaryMinXY.x || point->x>boundaryMaxXY.x || point->y<boundaryMinXY.y || point->y>boundaryMaxXY.y)
 		{
 			++pointView,/* ++pointNormal,*/ ++pointColor, ++pointWeight;
@@ -332,41 +319,6 @@ bool SceneDevide::PointsCouldProcess()
 			}
 		}
 	}
-
-	//int countView(0);
-	//for (auto pointView = scenes.at(0).pointcloud.pointViews.begin(); pointView != scenes.at(0).pointcloud.pointViews.end(); pointView++)
-	//{
-	//	const int viewSize = pointView->size();
-	//	for (size_t viewIndex = 0; viewIndex < viewSize; viewIndex++)
-	//	{
-	//		auto pos = imageIndexMatcher.at(0).find(int((*pointView)[viewIndex]));
-	//		if (pos == imageIndexMatcher.at(0).end())
-	//		{
-	//			cout << (*pointView)[viewIndex] << endl;
-	//			cout << countView << endl << viewIndex << endl;
-	//			cout << "failed" << endl; getchar();
-	//		}
-	//	}
-	//	++countView;
-	//}
-
-	//show image matcher 
-
-	{
-		for (size_t i = 0; i < scenes.size(); i++)
-		{
-			string fileName("matcher_");
-			fileName += (std::to_string(i) + ".txt");
-
-			ofstream writer(fileName);
-			for (auto index = imageIndexMatcher.at(i).begin(); index != imageIndexMatcher.at(i).end() ; index++)
-			{
-				writer << index->first << " " << index->second << endl;
-			}
-			writer.close();
-		}
-	}
-
 	return true;
 }
 
@@ -379,7 +331,7 @@ bool SceneDevide::ImageCrop(
 	MVS::Scene &scene)
 {
 
-	bool writeImageTag(false);
+	bool writeImageTag(true);
 	vector<int> imageIndexToSave;
 
 	const double areaThreshold(2000000);
@@ -467,8 +419,6 @@ bool SceneDevide::ImageCrop(
 
 			string imageName = string("F:/MillerWorkPath/mvsWorkPathAuto303/") + imageIndexed.name; //FIXME: image path specific
 			string imageOutputName = imagePath + "/" + imageName.substr(imageName.find_last_of('/'), imageName.length() - imageName.find_last_of('/'));
-			imageIndexToSave.push_back(imageIndex);
-			matcher.insert(pair<int, int>(imageIndex, imageIndexToSave.size() - 1));
 
 			if (writeImageTag)
 			{
@@ -479,6 +429,8 @@ bool SceneDevide::ImageCrop(
 				{
 					continue;
 				}
+				imageIndexToSave.push_back(imageIndex);
+				matcher.insert(pair<int, int>(imageIndex, imageIndexToSave.size() - 1));
 				//
 				//cout << minX << endl << minY << endl << maxX << endl << maxY << endl;
 				//
