@@ -379,7 +379,7 @@ bool SceneDevide::ImageCrop(
 	MVS::Scene &scene)
 {
 
-	bool writeImageTag(false);
+	bool writeImageTag(true);
 	vector<int> imageIndexToSave;
 
 	const double areaThreshold(2000000);
@@ -465,7 +465,7 @@ bool SceneDevide::ImageCrop(
 				continue;
 			}
 
-			string imageName = string("F:/MillerWorkPath/mvsWorkPathAuto303/") + imageIndexed.name; //FIXME: image path specific
+			string imageName = string("F:/MillerWorkPath/openMVSWorkPath47/") + imageIndexed.name; //FIXME: image path specific
 			string imageOutputName = imagePath + "/" + imageName.substr(imageName.find_last_of('/'), imageName.length() - imageName.find_last_of('/'));
 			imageIndexToSave.push_back(imageIndex);
 			matcher.insert(pair<int, int>(imageIndex, imageIndexToSave.size() - 1));

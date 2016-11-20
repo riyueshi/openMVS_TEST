@@ -21,7 +21,7 @@ int main(int argc, LPCTSTR* argv)
 	//}
 	Scene scene;
 	// load and estimate a dense point-cloud
-	if (!scene.Load("F:\\MillerWorkPath\\mvsWorkPathAuto303\\scene_dense.mvs"))
+	if (!scene.Load("F:\\MillerWorkPath\\openMVSWorkPath47\\scene_dense.mvs"))
 		return EXIT_FAILURE;
 	if (scene.pointcloud.IsEmpty()) {
 		VERBOSE("error: empty initial point-cloud");
@@ -30,11 +30,11 @@ int main(int argc, LPCTSTR* argv)
 	std::cout << scene.images.size() << std::endl;
 	SceneDevide::UniqueImageCamera(scene);
 	SceneDevide processer(&scene);
-	processer.workPath = "F:\\MillerWorkPath\\VSProject\\WorkPath303";
-	processer.numOfScenesInX = 6;
-	processer.numOfScenesInY = 6;
-	processer.boundaryMinXY = Point2d(-8.0, -8.0);
-	processer.boundaryMaxXY = Point2d(8.0, 8.0);
+	processer.workPath = "F:\\MillerWorkPath\\VSProject\\WorkPath47";
+	processer.numOfScenesInX = 2;
+	processer.numOfScenesInY = 2;
+	processer.boundaryMinXY = Point2d(-4.0, -4.0);
+	processer.boundaryMaxXY = Point2d(4.0, 4.0);
 	processer.InitialParams();
 	std::cout << processer.scenes.at(0).images.size() << std::endl;
 	//processer.SceneDevideProcess();
