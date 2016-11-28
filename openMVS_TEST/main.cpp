@@ -8,33 +8,50 @@ using namespace MVS;
 int main(int argc, LPCTSTR* argv)
 {
 	//test
-	//{
-	//	Eigen::Matrix<double, 3, 4> pMat;
-	//	pMat << 5544.3333513004009, 6327.0118781724641, -4163.8803077455887, -24333702917.6702380000000,
-	//		6125.8059861543297, -5628.0998371394608, -3405.3217288966198, 15747638037.5692670000000,
-	//		-0.0362355312611, 0.0203282471373, -0.9991365015065, -48380.1370322157820;
-	//	Matrix3x4 p(pMat);
-	//	Camera cam(p);
-	//	cam.DecomposeP();
-	//	std::cout << cam.C << std::endl;
-	//	getchar();
-	//}
+	{
+		SceneDevide::imageWidth = 8176;
+		SceneDevide::imageHeight = 6132;
+
+		Scene scene;
+		// load and estimate a dense point-cloud
+		if (!scene.Load("F:\\MillerWorkPath\\mvsWorkPathSparse12\\sparse12_mesh.mvs"))
+		{
+			std::cout << "failed to load scene" << std::endl;
+			getchar();
+			return EXIT_FAILURE;
+		}
+		//std::cout << scene.mesh.faces.size() << std::endl; getchar();
+		//SceneDevide::SimplicatePointCloud(0.05, scene);
+		std::vector<int> imageIndexVec;
+		SceneDevide::FliterRundantImage(15, scene,imageIndexVec);
+		scene.Save("sparse12.mvs");
+		scene.pointcloud.Save("sparsePoint.ply");
+		std::cout << "simplicate point finished" << std::endl;
+		getchar();
+	}
 	Scene scene;
 	// load and estimate a dense point-cloud
-	if (!scene.Load("F:\\MillerWorkPath\\openMVSWorkPath303\\scene_dense.mvs"))
+	if (!scene.Load("F:\\MillerWorkPath\\openMVSWorkPath303\\scene.mvs"))
+	{
+		std::cout << scene.images.begin()->name << std::endl;
+		std::cout << "failed to load scene" << std::endl;
+		getchar();
 		return EXIT_FAILURE;
+	}
 	if (scene.pointcloud.IsEmpty()) {
 		VERBOSE("error: empty initial point-cloud");
+		std::cout << "Enmpty point could" << std::endl;
+		getchar();
 		return EXIT_FAILURE;
 	}
 	std::cout << scene.images.size() << std::endl;
 	SceneDevide::UniqueImageCamera(scene);
 	SceneDevide processer(&scene);
-	processer.workPath = "F:\\MillerWorkPath\\VSProject\\WorkPath303";
+	processer.workPath = "F:\\MillerWorkPath\\VSProject\\WorkPath303Sparese";
 	processer.numOfScenesInX = 5;
 	processer.numOfScenesInY = 5;
-	processer.boundaryMinXY = Point2d(-8.0, -8.0);
-	processer.boundaryMaxXY = Point2d(8.0, 8.0);
+	processer.boundaryMinXY = Point2d(-7.0, -7.0);
+	processer.boundaryMaxXY = Point2d(7.0, 7.0);
 	processer.InitialParams();
 	std::cout << processer.scenes.at(0).images.size() << std::endl;
 	//processer.SceneDevideProcess();

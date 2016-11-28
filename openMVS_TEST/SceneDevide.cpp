@@ -1,6 +1,8 @@
 #include "SceneDevide.h"
 #include "file_system.hpp"
 
+#include <omp.h>
+#include <math.h>
 
 using namespace std;
 using namespace MVS;
@@ -64,6 +66,98 @@ bool SceneDevide::UniqueImageCamera(MVS::Scene &scene)
 	}
 	return true;
 }
+
+bool SceneDevide::SimplicatePointCloud(const double pointPercentage, MVS::Scene & scene)
+{
+	//simplicate the point could
+	int step = 1.0 / pointPercentage;
+	for (long long i = scene.pointcloud.points.size()-1; i >0; --i)
+	{
+		if (i % step == 0)
+		{
+			continue;
+		}
+		scene.pointcloud.RemovePoint(i);
+	}
+	return true;
+}
+
+bool SceneDevide::FliterRundantImage(const int numOfImageInEachDirection, MVS::Scene & scene, std::vector<int> &validImageIndex)
+{
+	validImageIndex.clear();
+	if (numOfImageInEachDirection<3)
+	{
+		cout << "Error: More than 3 images in each direction are expected to reconstrut the scene" << endl;
+		getchar();
+		return false;
+	}
+	
+	vector<Eigen::Vector3d> faceCenterVec;	//face center
+	//compute the area of each face using cross product
+	vector<double> faceAreaVec;
+	for (auto faceIter = scene.mesh.faces.begin(); faceIter != scene.mesh.faces.end(); faceIter++)
+	{
+		Eigen::Vector3d point1, point2, point3;
+		point1 << scene.mesh.vertices[(*faceIter)[0]].x, scene.mesh.vertices[(*faceIter)[0]].y, scene.mesh.vertices[(*faceIter)[0]].z;
+		point2 << scene.mesh.vertices[(*faceIter)[1]].x, scene.mesh.vertices[(*faceIter)[1]].y, scene.mesh.vertices[(*faceIter)[1]].z;
+		point3 << scene.mesh.vertices[(*faceIter)[2]].x, scene.mesh.vertices[(*faceIter)[2]].y, scene.mesh.vertices[(*faceIter)[2]].z;
+
+		double area = ((point3-point1).cross(point2-point1)).norm() / 2.0;
+		//cout << area << "..";
+		faceAreaVec.push_back(area);
+		faceCenterVec.push_back((point1+point2+point3)/3.0);
+	}
+	scene.mesh.ComputeNormalFaces();
+
+	//process the first N image
+	double angleThreshod = cos(M_PI / 6.0);
+	vector<int> validCameraCount(scene.mesh.faces.size(), 0);
+	vector<vector<int>> visableFaceInCamera(scene.images.size());
+	vector<double> validAreaInCamera(scene.images.size(),0);
+	long faceIndex(0);
+	for (auto faceIter = scene.mesh.faces.begin(); faceIter != scene.mesh.faces.end(); faceIter++, faceIndex++)
+	{
+		//cout << faceIndex << ",";
+		long imageIndex(0);
+		for (auto imageIter = scene.images.begin(); imageIter != scene.images.end(); imageIter++, imageIndex++)
+		{
+			Eigen::Vector3d faceNormal(scene.mesh.faceNormals[faceIndex].x, scene.mesh.faceNormals[faceIndex].y, scene.mesh.faceNormals[faceIndex].z);
+			Eigen::Vector3d cameraCenter(imageIter->camera.C.x, imageIter->camera.C.y, imageIter->camera.C.z);
+			Eigen::Vector3d bundle = cameraCenter - faceCenterVec.at(faceIndex);
+			double cosTheta = faceNormal.dot(bundle) / (faceNormal.norm()*bundle.norm());
+			if (cosTheta>angleThreshod)
+			{
+				//cout << imageIndex << " ";
+				auto imagePoint = imageIter->camera.ProjectPoint(Point3d(faceCenterVec.at(faceIndex).x(), faceCenterVec.at(faceIndex).y(), faceCenterVec.at(faceIndex).z()));
+				double deltX = abs(imagePoint.x - imageIter->camera.K(0, 2));
+				double deltY = abs(imagePoint.y - imageIter->camera.K(1, 2));
+				if (deltX<imageWidth/2.0&&deltY<imageHeight/2.0)
+				{
+					validCameraCount.at(faceIndex)++;
+					validAreaInCamera.at(imageIndex) += faceAreaVec.at(faceIndex);
+					visableFaceInCamera.at(imageIndex).push_back(faceIndex);
+				}
+			}
+		}
+	}
+
+	map<double, int> areaAndCameraIndex;
+	for (int i = 0; i < validAreaInCamera.size(); i++)
+	{
+		areaAndCameraIndex.insert(pair<double, int>(validAreaInCamera.at(i), i));
+	}
+
+	auto iter = --areaAndCameraIndex.end();
+	for (int i = 0; i < numOfImageInEachDirection; i++)
+	{
+		validImageIndex.push_back((iter--)->second);
+	}
+
+	//process the rest images
+
+	return true;
+}
+
 
 SceneDevide::SceneDevide(MVS::Scene *sceneOri) :_pScene(sceneOri)
 {
@@ -168,16 +262,24 @@ bool SceneDevide::ImageProcess()
 			sceneRange.push_back(range);
 		}
 	}
-	int sceneIndex(0);
-	for (size_t indexY = 0; indexY < numOfScenesInY; indexY++)
+	//int sceneIndex(0);
+	//for (size_t indexY = 0; indexY < numOfScenesInY; indexY++)
+	//{
+	//	for (size_t indexX = 0; indexX < numOfScenesInX; indexX++)
+	//	{
+	//		sceneIndex = indexY*numOfScenesInX+indexX;
+	//		string imagePath = workPath + "\\block_" + std::to_string(indexY) + std::to_string(indexX);
+	//		ImageCrop(sceneRange.at(sceneIndex), imagePath, averageHeight, imageIndexMatcher.at(sceneIndex), scenes.at(sceneIndex));
+	//	}
+	//}
+
+#pragma omp parallel for
+	for (int sceneIndex = 0; sceneIndex < numOfScenes; sceneIndex++)
 	{
-		for (size_t indexX = 0; indexX < numOfScenesInX; indexX++)
-		{
-			sceneIndex = indexY*numOfScenesInX+indexX;
-			string imagePath = workPath + "\\block_" + std::to_string(indexY) + std::to_string(indexX);
-			ImageCrop(sceneRange.at(sceneIndex), imagePath, averageHeight, imageIndexMatcher.at(sceneIndex), scenes.at(sceneIndex));
-		}
+		string imagePath = workPath + "\\block_" + std::to_string(sceneIndex);
+		ImageCrop(sceneRange.at(sceneIndex), imagePath, averageHeight, imageIndexMatcher.at(sceneIndex), scenes.at(sceneIndex));
 	}
+
 	return true;
 }
 
@@ -194,6 +296,12 @@ bool SceneDevide::PointsCouldProcess()
 		_pScene->pointcloud.points.size() != _pScene->pointcloud.pointWeights.size())
 	{
 		std::cout << "Error: Invalid point cloud in scene" << endl;
+		std::cout << endl << _pScene->pointcloud.points.size() << endl
+			<< _pScene->pointcloud.pointViews.size() << endl
+			<< _pScene->pointcloud.normals.size() << endl
+			<< _pScene->pointcloud.colors.size() << endl
+			<< _pScene->pointcloud.pointWeights.size() << endl << endl;
+
 		return false;
 	}
 
@@ -208,16 +316,11 @@ bool SceneDevide::PointsCouldProcess()
 		count++;
 		int indexX = (point->x - boundaryMinXY.x) / sceneSizeX;
 		int indexY = (point->y - boundaryMinXY.y) / sceneSizeY;
-		if (indexX<0||indexY<0||indexX>numOfScenesInX-1||indexY>numOfScenesInY-1)
+		if (indexX<0 || indexY<0 || indexX>numOfScenesInX - 1 || indexY>numOfScenesInY - 1)
 		{
 			++pointView,/* ++pointNormal,*/ ++pointColor, ++pointWeight;
 			continue;
 		}
-		//if (count==5648776)
-		//{
-		//	std::cout << count << endl;
-		//	std::cout << indexX << endl << indexY << endl;
-		//}
 		if (point->x<boundaryMinXY.x || point->x>boundaryMaxXY.x || point->y<boundaryMinXY.y || point->y>boundaryMaxXY.y)
 		{
 			++pointView,/* ++pointNormal,*/ ++pointColor, ++pointWeight;
@@ -300,19 +403,6 @@ bool SceneDevide::PointsCouldProcess()
 		}
 		++pointView,/* ++pointNormal,*/ ++pointColor, ++pointWeight;
 	}
-	ofstream watcher2("watcher2.txt");
-	//for (auto pointView = scenes.at(0).pointcloud.pointViews.begin(); pointView != scenes.at(0).pointcloud.pointViews.end(); pointView++)
-	//{
-	//	const int viewSize = pointView->size();
-	//	for (size_t viewIndex = 0; viewIndex < viewSize; viewIndex++)
-	//	{
-	//		int index = (*pointView)[viewIndex];
-	//		if (index>imageIndexMatcher.at(0).size() - 1)
-	//		{
-	//			watcher2 << index << " ";
-	//		}
-	//	}
-	//}
 
 	int countView(0);
 	for (size_t sceneIndex = 0; sceneIndex < scenes.size(); sceneIndex++)
@@ -331,59 +421,16 @@ bool SceneDevide::PointsCouldProcess()
 				}
 				else
 				{
-					//std::cout << imageIndexMatcher.at(sceneIndex).at((*pointView)[viewIndex]) << " ";
 					(*pointView)[viewIndex] = imageIndexMatcher.at(sceneIndex).at((*pointView)[viewIndex]);
 				}
 			}
-			//
-			std::sort(viewIndexVec.begin(), viewIndexVec.end());
-			for (size_t viewIndex = viewIndexVec.size() - 1; viewIndex > -1; viewIndex--)
-			{
-				pointView->RemoveAt(viewIndexVec.at(viewIndex));
-			}
-			for (size_t viewIndex = 0; viewIndex <viewIndexVec.size(); viewIndex++)
+			for (size_t viewIndex = 0; viewIndex < viewIndexVec.size(); viewIndex++)
 			{
 				pointView->Remove(viewIndexVec.at(viewIndex));
 			}
 
 		}
 	}
-
-	ofstream watcher("watcher3.txt");
-	countView = 0;
-	for (auto pointView = scenes.at(0).pointcloud.pointViews.begin(); pointView != scenes.at(0).pointcloud.pointViews.end(); pointView++)
-	{
-		const int viewSize = pointView->size();
-		for (size_t viewIndex = 0; viewIndex < viewSize; viewIndex++)
-		{
-			int index = (*pointView)[viewIndex];
-			if (index>imageIndexMatcher.at(0).size()-1)
-			{
-				//std::cout << countView << endl << viewIndex << endl;
-				watcher << index << " ";
-				//std::cout << index << " ";
-				//getchar();
-			}
-		}
-		++countView;
-	}
-	std::cout << "passed" << endl;
-	//getchar();
-	//show image matcher 
-	//{
-	//	for (size_t i = 0; i < scenes.size(); i++)
-	//	{
-	//		string fileName("matcher_");
-	//		fileName += (std::to_string(i) + ".txt");
-	//		ofstream writer(fileName);
-	//		for (auto index = imageIndexMatcher.at(i).begin(); index != imageIndexMatcher.at(i).end() ; index++)
-	//		{
-	//			writer << index->first << " " << index->second << endl;
-	//		}
-	//		writer.close();
-	//	}
-	//}
-
 	return true;
 }
 

@@ -5,6 +5,9 @@
 *.suo
 *.txt
 *.user
+*.jpg
+*.ply
+*.mvs
 *.userosscache
 *.sln.docstates
 
