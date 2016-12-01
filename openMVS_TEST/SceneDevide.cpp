@@ -2,6 +2,7 @@
 #include "file_system.hpp"
 
 #include <omp.h>
+#include <set>
 #include <math.h>
 
 using namespace std;
@@ -19,14 +20,15 @@ bool ShowImageInfo(const MVS::Scene &scene, std::string fileName)
 	std::ofstream writer(fileName);
 	for (auto imageIndexed = scene.images.begin(); imageIndexed != scene.images.end(); imageIndexed++)
 	{
-		imageIndexed->UpdateCamera(scene.platforms);
-		writer << imageIndexed->name << imageIndexed->height << " " << imageIndexed->width << endl
-			<< imageIndexed->camera.K << endl
-			<< scene.platforms[imageIndexed->platformID].cameras[imageIndexed->cameraID].K << endl << endl;
+		//imageIndexed->UpdateCamera(scene.platforms);
+		writer << imageIndexed->name << imageIndexed->height << " " << imageIndexed->width << endl;
+		//	<< imageIndexed->camera.K << endl
+		//	<< scene.platforms[imageIndexed->platformID].cameras[imageIndexed->cameraID].K << endl << endl;
 
 		for (auto neightBorIndexed = imageIndexed->neighbors.begin(); neightBorIndexed != imageIndexed->neighbors.end(); neightBorIndexed++)
 		{
-			writer << neightBorIndexed->idx.ID << " ";
+			
+			writer << neightBorIndexed->idx.ID << " " << neightBorIndexed->score << endl;
 		}
 		writer << endl;
 	}
@@ -84,6 +86,10 @@ bool SceneDevide::SimplicatePointCloud(const double pointPercentage, MVS::Scene 
 
 bool SceneDevide::FliterRundantImage(const int numOfImageInEachDirection, MVS::Scene & scene, std::vector<int> &validImageIndex)
 {
+	MVS::Scene sceneCopy = scene;
+	sceneCopy.mesh.faceNormals.clear();
+	sceneCopy.mesh.faces.clear();
+	ShowImageInfo(scene, "info.txt");
 	validImageIndex.clear();
 	if (numOfImageInEachDirection<3)
 	{
@@ -109,55 +115,173 @@ bool SceneDevide::FliterRundantImage(const int numOfImageInEachDirection, MVS::S
 	}
 	scene.mesh.ComputeNormalFaces();
 
-	//process the first N image
-	double angleThreshod = cos(M_PI / 6.0);
 	vector<int> validCameraCount(scene.mesh.faces.size(), 0);
+	vector<int> validCameraCount2(scene.mesh.faces.size(), 0);
+	vector<set<int>> visableCameraInFace(scene.mesh.faces.size());
 	vector<vector<int>> visableFaceInCamera(scene.images.size());
-	vector<double> validAreaInCamera(scene.images.size(),0);
-	long faceIndex(0);
-	for (auto faceIter = scene.mesh.faces.begin(); faceIter != scene.mesh.faces.end(); faceIter++, faceIndex++)
+	vector<vector<int>> visableFaceInCameraRest(scene.images.size());
+
+	//process the first N images (the downwards image are more likely to be the first N image)
 	{
-		//cout << faceIndex << ",";
-		long imageIndex(0);
-		for (auto imageIter = scene.images.begin(); imageIter != scene.images.end(); imageIter++, imageIndex++)
+		double angleThreshod = cos(M_PI / 6.0);
+		vector<double> validAreaInCamera(scene.images.size(), 0);
+		long faceIndex(0);
+		for (auto faceIter = scene.mesh.faces.begin(); faceIter != scene.mesh.faces.end(); faceIter++, faceIndex++)
 		{
-			Eigen::Vector3d faceNormal(scene.mesh.faceNormals[faceIndex].x, scene.mesh.faceNormals[faceIndex].y, scene.mesh.faceNormals[faceIndex].z);
-			Eigen::Vector3d cameraCenter(imageIter->camera.C.x, imageIter->camera.C.y, imageIter->camera.C.z);
-			Eigen::Vector3d bundle = cameraCenter - faceCenterVec.at(faceIndex);
-			double cosTheta = faceNormal.dot(bundle) / (faceNormal.norm()*bundle.norm());
-			if (cosTheta>angleThreshod)
+			//cout << faceIndex << ",";
+			long imageIndex(0);
+			for (auto imageIter = scene.images.begin(); imageIter != scene.images.end(); imageIter++, imageIndex++)
 			{
-				//cout << imageIndex << " ";
-				auto imagePoint = imageIter->camera.ProjectPoint(Point3d(faceCenterVec.at(faceIndex).x(), faceCenterVec.at(faceIndex).y(), faceCenterVec.at(faceIndex).z()));
-				double deltX = abs(imagePoint.x - imageIter->camera.K(0, 2));
-				double deltY = abs(imagePoint.y - imageIter->camera.K(1, 2));
-				if (deltX<imageWidth/2.0&&deltY<imageHeight/2.0)
+				Eigen::Vector3d faceNormal(scene.mesh.faceNormals[faceIndex].x, scene.mesh.faceNormals[faceIndex].y, scene.mesh.faceNormals[faceIndex].z);
+				Eigen::Vector3d cameraCenter(imageIter->camera.C.x, imageIter->camera.C.y, imageIter->camera.C.z);
+				//Eigen::Vector3d bundle = cameraCenter - faceCenterVec.at(faceIndex);
+				Point3d bundleT = -scene.images[imageIndex].camera.R.inv() * Point3d(0, 0, 1);
+				Eigen::Vector3d bundle(bundleT.x,bundleT.y,bundleT.z);
+				double cosTheta = faceNormal.dot(bundle) / (faceNormal.norm()*bundle.norm());
+				if (cosTheta>angleThreshod)
 				{
-					validCameraCount.at(faceIndex)++;
-					validAreaInCamera.at(imageIndex) += faceAreaVec.at(faceIndex);
-					visableFaceInCamera.at(imageIndex).push_back(faceIndex);
+					//cout << imageIndex << " ";
+					auto imagePoint = imageIter->camera.ProjectPoint(Point3d(faceCenterVec.at(faceIndex).x(), faceCenterVec.at(faceIndex).y(), faceCenterVec.at(faceIndex).z()));
+					double deltX = abs(imagePoint.x - imageIter->camera.K(0, 2));
+					double deltY = abs(imagePoint.y - imageIter->camera.K(1, 2));
+					if (deltX<imageWidth / 2.0&&deltY<imageHeight / 2.0)
+					{
+						visableCameraInFace.at(faceIndex).insert(imageIndex);
+						double distance = (cameraCenter - faceCenterVec.at(faceIndex)).norm();
+						//cout <<"the distance is :"<< distance << endl; getchar();
+						validAreaInCamera.at(imageIndex) += faceAreaVec.at(faceIndex) / distance * 10;
+						visableFaceInCamera.at(imageIndex).push_back(faceIndex);
+					}
 				}
 			}
 		}
+
+		map<double, int> areaAndCameraIndex;
+		for (int i = 0; i < validAreaInCamera.size(); i++)
+		{
+			areaAndCameraIndex.insert(pair<double, int>(validAreaInCamera.at(i), i));
+		}
+
+		auto iter = --areaAndCameraIndex.end();
+		for (int i = 0; i < numOfImageInEachDirection; i++)
+		{
+			validImageIndex.push_back((iter--)->second);
+		}
 	}
 
-	map<double, int> areaAndCameraIndex;
-	for (int i = 0; i < validAreaInCamera.size(); i++)
+	//count the valid image (already processed) that each face can be seen
+
+	for (size_t imgIndex = 0; imgIndex < validImageIndex.size(); imgIndex++)
 	{
-		areaAndCameraIndex.insert(pair<double, int>(validAreaInCamera.at(i), i));
+		for (size_t fIndex = 0; fIndex < visableFaceInCamera.at(validImageIndex.at(imgIndex)).size(); fIndex++)
+		{
+			++validCameraCount.at(visableFaceInCamera.at(validImageIndex.at(imgIndex)).at(fIndex));
+		}
 	}
 
-	auto iter = --areaAndCameraIndex.end();
-	for (int i = 0; i < numOfImageInEachDirection; i++)
+	//make mesh visable 
 	{
-		validImageIndex.push_back((iter--)->second);
+		for (size_t i = 0; i < validCameraCount.size(); i++)
+		{
+			if (validCameraCount.at(i) > 2)
+			{
+				sceneCopy.mesh.faces.push_back(scene.mesh.faces[i]);
+			}
+		}
+		sceneCopy.mesh.Save("testMesh.ply");
+		cout << "finished";
+		//getchar();
 	}
 
-	//process the rest images
+	//process the rest images in the other four direction
+	for (size_t i = 0; i < 12; i++)
+	{
+		double angleThreshod = cos(M_PI / 3.0);
+		vector<double> validAreaInCamera(scene.images.size(), 0);
+		long faceIndex(0);
+		for (auto faceIter = scene.mesh.faces.begin(); faceIter != scene.mesh.faces.end(); faceIter++, faceIndex++)
+		{
+			if (validCameraCount.at(faceIndex)>numOfImageInEachDirection-1)
+			{
+				continue;
+			}
+			//cout << faceIndex << ",";
+			long imageIndex(0);
+			for (auto imageIter = scene.images.begin(); imageIter != scene.images.end(); imageIter++, imageIndex++)
+			{
+				string imageNameT = imageIter->name.substr(imageIter->name.find("/") + 5, 1);
+				//cout << imageNameT << ",";
+				if (imageNameT == "E" )
+				{
+					continue;
+				}
+				if (find(validImageIndex.begin(), validImageIndex.end(),imageIndex)!= validImageIndex.end())
+				{
+					continue;
+				}
+				Eigen::Vector3d faceNormal(scene.mesh.faceNormals[faceIndex].x, scene.mesh.faceNormals[faceIndex].y, scene.mesh.faceNormals[faceIndex].z);
+				Eigen::Vector3d cameraCenter(imageIter->camera.C.x, imageIter->camera.C.y, imageIter->camera.C.z);
+				//Eigen::Vector3d bundle = cameraCenter - faceCenterVec.at(faceIndex);
+				Point3d bundleT = -scene.images[imageIndex].camera.R.inv() * Point3d(0, 0, 1);
+				Eigen::Vector3d bundle(bundleT.x, bundleT.y, bundleT.z);
 
+				double cosTheta = faceNormal.dot(bundle) / (faceNormal.norm()*bundle.norm());
+				if (cosTheta>angleThreshod)
+				{
+					//cout << imageIndex << " ";
+					auto imagePoint = imageIter->camera.ProjectPoint(Point3d(faceCenterVec.at(faceIndex).x(), faceCenterVec.at(faceIndex).y(), faceCenterVec.at(faceIndex).z()));
+					double deltX = abs(imagePoint.x - imageIter->camera.K(0, 2));
+					double deltY = abs(imagePoint.y - imageIter->camera.K(1, 2));
+					if (deltX<imageWidth / 2.0&&deltY<imageHeight / 2.0)
+					{
+						visableCameraInFace.at(faceIndex).insert(imageIndex);
+						double distance = (cameraCenter - faceCenterVec.at(faceIndex)).norm();
+						validAreaInCamera.at(imageIndex) += faceAreaVec.at(faceIndex) / distance * 10;
+						if (i==0)
+						{
+							visableFaceInCameraRest.at(imageIndex).push_back(faceIndex);
+						}
+					}
+				}
+			}
+		}
+		map<double, int> areaAndCameraIndex;
+		for (int i = 0; i < validAreaInCamera.size(); i++)
+		{
+			areaAndCameraIndex.insert(pair<double, int>(validAreaInCamera.at(i), i));
+		}
+
+		auto iter = --areaAndCameraIndex.end();
+		for (int i = 0; i < 1; i++)
+		{
+			validImageIndex.push_back((iter--)->second);
+		}
+		//count the valid image (already processed) that each face can be seen
+		for (size_t imgIndex = 3+i; imgIndex < validImageIndex.size(); imgIndex++)
+		{
+			cout<<visableFaceInCamera.at(validImageIndex.at(imgIndex)).size() << endl;
+			for (size_t fIndex = 0; fIndex < visableFaceInCameraRest.at(validImageIndex.at(imgIndex)).size(); fIndex++)
+			{
+				++validCameraCount.at(visableFaceInCameraRest.at(validImageIndex.at(imgIndex)).at(fIndex));
+			}
+		}
+		//make mesh visable 
+		{
+			sceneCopy.mesh.faces.clear();
+			for (size_t i = 0; i < validCameraCount.size(); i++)
+			{
+				if (validCameraCount.at(i) > 2)
+				{
+					sceneCopy.mesh.faces.push_back(scene.mesh.faces[i]);
+				}
+			}
+			sceneCopy.mesh.Save(string("testMesh")+std::to_string(i)+".ply");
+			cout << "finished";
+			//getchar();
+		}
+	}
 	return true;
 }
-
 
 SceneDevide::SceneDevide(MVS::Scene *sceneOri) :_pScene(sceneOri)
 {
