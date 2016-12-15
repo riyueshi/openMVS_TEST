@@ -120,10 +120,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="filesystemSimplified\file_system.cpp" />
+    <ClCompile Include="filesystemSimplified\portability_fixes.cpp" />
+    <ClCompile Include="filesystemSimplified\wildcard.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="SceneDevide.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="filesystemSimplified\file_system.hpp" />
+    <ClInclude Include="filesystemSimplified\portability_fixes.hpp" />
+    <ClInclude Include="filesystemSimplified\wildcard.hpp" />
     <ClInclude Include="SceneDevide.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

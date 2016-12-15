@@ -183,7 +183,7 @@ bool SceneDevide::FliterRundantImage(const int numOfImageInEachDirection, MVS::S
 	{
 		for (size_t i = 0; i < validCameraCount.size(); i++)
 		{
-			if (validCameraCount.at(i) > 2)
+			if (validCameraCount.at(i) > numOfImageInEachDirection-1)
 			{
 				sceneCopy.mesh.faces.push_back(scene.mesh.faces[i]);
 			}
@@ -194,9 +194,9 @@ bool SceneDevide::FliterRundantImage(const int numOfImageInEachDirection, MVS::S
 	}
 
 	//process the rest images in the other four direction
-	for (size_t i = 0; i < 12; i++)
+	for (size_t i = 0; i < 4*numOfImageInEachDirection; i++)
 	{
-		double angleThreshod = cos(M_PI / 3.0);
+		double angleThreshod = cos(M_PI / 2.5);
 		vector<double> validAreaInCamera(scene.images.size(), 0);
 		long faceIndex(0);
 		for (auto faceIter = scene.mesh.faces.begin(); faceIter != scene.mesh.faces.end(); faceIter++, faceIndex++)
@@ -257,7 +257,7 @@ bool SceneDevide::FliterRundantImage(const int numOfImageInEachDirection, MVS::S
 			validImageIndex.push_back((iter--)->second);
 		}
 		//count the valid image (already processed) that each face can be seen
-		for (size_t imgIndex = 3+i; imgIndex < validImageIndex.size(); imgIndex++)
+		for (size_t imgIndex = numOfImageInEachDirection+i; imgIndex < validImageIndex.size(); imgIndex++)
 		{
 			cout<<visableFaceInCamera.at(validImageIndex.at(imgIndex)).size() << endl;
 			for (size_t fIndex = 0; fIndex < visableFaceInCameraRest.at(validImageIndex.at(imgIndex)).size(); fIndex++)
@@ -270,7 +270,7 @@ bool SceneDevide::FliterRundantImage(const int numOfImageInEachDirection, MVS::S
 			sceneCopy.mesh.faces.clear();
 			for (size_t i = 0; i < validCameraCount.size(); i++)
 			{
-				if (validCameraCount.at(i) > 2)
+				if (validCameraCount.at(i) > numOfImageInEachDirection-1)
 				{
 					sceneCopy.mesh.faces.push_back(scene.mesh.faces[i]);
 				}
@@ -567,7 +567,7 @@ bool SceneDevide::ImageCrop(
 	MVS::Scene &scene)
 {
 
-	bool writeImageTag(false);
+	bool writeImageTag(true);
 	vector<int> imageIndexToSave;
 
 	const double areaThreshold(2000000);

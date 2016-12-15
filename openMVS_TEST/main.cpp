@@ -2,6 +2,7 @@
 #include "MVS/Scene.h"
 
 #include "SceneDevide.h"
+#include "filesystemSimplified/file_system.hpp"
 
 using namespace MVS;
 bool RemoveImages(Scene &scene, std::vector<int> imageIndexVec)
@@ -81,59 +82,123 @@ bool RemoveImages(Scene &scene, std::vector<int> imageIndexVec)
 	return true;
 }
 
+bool ExportPmat(const Scene &scene,const std::string &pMatFilePath, const std::string &outPutPath)
+{
+	stlplus::folder_create(outPutPath + "\\CamA");
+	stlplus::folder_create(outPutPath + "\\CamB");
+	stlplus::folder_create(outPutPath + "\\CamC");
+	stlplus::folder_create(outPutPath + "\\CamD");
+	stlplus::folder_create(outPutPath + "\\CamE");
+
+	for (int imageIndex = 0; imageIndex < scene.images.size(); imageIndex++)
+	{
+		std::string fileNameBase = stlplus::basename_part(scene.images[imageIndex].name);
+		std::string srcFileName;
+		std::string tarFileName;
+		if (fileNameBase.substr(3,1)=="A")
+		{
+			srcFileName = pMatFilePath + "\\" + fileNameBase + ".txt";
+			tarFileName = outPutPath + "\\CamA\\" + fileNameBase + ".txt";
+		}
+		else if (fileNameBase.substr(3, 1) == "B")
+		{
+			srcFileName = pMatFilePath + "\\" + fileNameBase + ".txt";
+			tarFileName = outPutPath + "\\CamB\\" + fileNameBase + ".txt";
+		}
+		else if (fileNameBase.substr(3, 1) == "C")
+		{
+			srcFileName = pMatFilePath + "\\" + fileNameBase + ".txt";
+			tarFileName = outPutPath + "\\CamC\\" + fileNameBase + ".txt";
+		}
+		else if (fileNameBase.substr(3, 1) == "D")
+		{
+			srcFileName = pMatFilePath + "\\" + fileNameBase + ".txt";
+			tarFileName = outPutPath + "\\CamD\\" + fileNameBase + ".txt";
+		}
+		else if (fileNameBase.substr(3, 1) == "E")
+		{
+			srcFileName = pMatFilePath + "\\" + fileNameBase + ".txt";
+			tarFileName = outPutPath + "\\CamE\\" + fileNameBase + ".txt";
+		}
+		else
+		{
+			std::cout << fileNameBase.substr(3, 1) << std::endl; getchar();
+		}
+		stlplus::file_copy(srcFileName, tarFileName);		
+	}
+	return true;
+}
+
+bool WritePmat(Scene &scene, const std::string &outPutPath)
+{
+	//stlplus::folder_create(outPutPath);
+	for (int imageIndex = 0; imageIndex < scene.images.size(); imageIndex++)
+	{
+		auto Pmat = scene.images[imageIndex].GetCamera(scene.platforms, cv::Size(scene.images[imageIndex].width, scene.images[imageIndex].height)).P;
+		//std::cout << outPutPath+"\\" + stlplus::basename_part(scene.images[imageIndex].name) + ".txt"; getchar();
+		std::ofstream writer(outPutPath + "\\" + stlplus::basename_part(scene.images[imageIndex].name) + ".txt");
+		writer << "CONTOUR" << std::endl;
+		writer << std::setiosflags(std::ios::fixed) << std::setprecision(13);
+		writer << Pmat(0, 0) << " " << Pmat(0, 1) << " " << Pmat(0, 2) << " " << Pmat(0, 3) << std::endl
+			<< Pmat(1, 0) << " " << Pmat(1, 1) << " " << Pmat(1, 2) << " " << Pmat(1, 3) << std::endl
+			<< Pmat(2, 0) << " " << Pmat(2, 1) << " " << Pmat(2, 2) << " " << Pmat(2, 3);
+		writer.close();
+	}
+	return true;
+}
+
 int main(int argc, LPCTSTR* argv)
 {
 	//test
 	{
-		SceneDevide::imageWidth = 8176;
-		SceneDevide::imageHeight = 6132;
-
+	//	SceneDevide::imageWidth = 8176;
+	//	SceneDevide::imageHeight = 6132;
 		Scene scene;
 		// load and estimate a dense point-cloud
-		if (!scene.Load("F:\\MillerWorkPath\\mvsWorkPathSparse12\\sparse12_mesh.mvs"))
+		if (!scene.Load("F:\\MillerWorkPath\\mvsWorkPathAuto303\\block_12.mvs"))
 		{
 			std::cout << "failed to load scene" << std::endl;
 			getchar();
 			return EXIT_FAILURE;
 		}
-		//std::cout << scene.mesh.faces.size() << std::endl; getchar();
-		//SceneDevide::SimplicatePointCloud(0.05, scene);
-		std::vector<int> imageIndexVec;
-		SceneDevide::FliterRundantImage(3, scene,imageIndexVec);
-		//std::vector<int> imageIndexToRemove;
-		//for (int i = 0; i < scene.images.size(); i++)
-		//{
-		//	if (std::find(imageIndexVec.begin(), imageIndexVec.end(), i)==imageIndexVec.end())
-		//	{
-		//		imageIndexToRemove.push_back(i);
-		//	}
-		//}
-
-		//RemoveImages(scene, imageIndexToRemove);
-		//scene.Save("block12T.mvs");
-		//std::cout << "process finished" << std::endl; getchar();
-
-		std::ofstream watcher("imageinfo2.txt");
-		for (size_t i = 0; i < imageIndexVec.size(); i++)
-		{
-			watcher <<"valid image index: "<< imageIndexVec.at(i) << std::endl;
-			std::string imageName = scene.images[imageIndexVec.at(i)].name;
-			//std::cout << scene.images[imageIndexVec.at(i)].camera.R*Point3d(0,0,1) << std::endl; getchar();
-			watcher << scene.images[imageIndexVec.at(i)].name << std::endl;
-
-			cv::Mat image = cv::imread(scene.images[imageIndexVec.at(i)].name);
-			std::cout << imageName.substr(1+imageName.find_last_of('/'), 12) << std::endl; /*getchar();*/
-			cv::imwrite(std::string("image30\\") + imageName.substr(1 + imageName.find_last_of('/'), 12), image);
-		}
-		watcher.close();
-		//scene.Save("sparse12.mvs");
-		//scene.pointcloud.Save("sparsePoint.ply");
-		std::cout << "simplicate point finished" << std::endl;
-		getchar();
+		//WritePmat(scene, "F:\\MillerWorkPath\\files\\Pmat303TransedScaled");
+		ExportPmat(scene, "F:\\MillerWorkPath\\files\\Pmat303TransedScaled", "F:\\MillerWorkPath\\files\\pMat102");
+		std::cout << "write Pmat finished" << std::endl; getchar();
+	//	//std::cout << scene.mesh.faces.size() << std::endl; getchar();
+	//	//SceneDevide::SimplicatePointCloud(0.05, scene);
+	//	std::vector<int> imageIndexVec;
+	//	SceneDevide::FliterRundantImage(9, scene,imageIndexVec);
+	//	std::vector<int> imageIndexToRemove;
+	//	for (int i = 0; i < scene.images.size(); i++)
+	//	{
+	//		if (std::find(imageIndexVec.begin(), imageIndexVec.end(), i)==imageIndexVec.end())
+	//		{
+	//			imageIndexToRemove.push_back(i);
+	//		}
+	//	}
+	//	RemoveImages(scene, imageIndexToRemove);
+	//	scene.Save("block12T.mvs");
+	//	std::cout << "process finished" << std::endl; getchar();
+	//	std::ofstream watcher("imageinfo2.txt");
+	//	for (size_t i = 0; i < imageIndexVec.size(); i++)
+	//	{
+	//		watcher <<"valid image index: "<< imageIndexVec.at(i) << std::endl;
+	//		std::string imageName = scene.images[imageIndexVec.at(i)].name;
+	//		//std::cout << scene.images[imageIndexVec.at(i)].camera.R*Point3d(0,0,1) << std::endl; getchar();
+	//		watcher << scene.images[imageIndexVec.at(i)].name << std::endl;
+	//		cv::Mat image = cv::imread(scene.images[imageIndexVec.at(i)].name);
+	//		std::cout << imageName.substr(1+imageName.find_last_of('/'), 12) << std::endl; /*getchar();*/
+	//		cv::imwrite(std::string("image30\\") + imageName.substr(1 + imageName.find_last_of('/'), 12), image);
+	//	}
+	//	watcher.close();
+	//	//scene.Save("sparse12.mvs");
+	//	//scene.pointcloud.Save("sparsePoint.ply");
+	//	std::cout << "simplicate point finished" << std::endl;
+	//	getchar();
 	}
 	Scene scene;
 	// load and estimate a dense point-cloud
-	if (!scene.Load("F:\\MillerWorkPath\\openMVSWorkPath303\\scene.mvs"))
+	if (!scene.Load("F:\\MillerWorkPath\\openMVSWorkPath303\\scene_dense.mvs"))
 	{
 		std::cout << scene.images.begin()->name << std::endl;
 		std::cout << "failed to load scene" << std::endl;
@@ -146,10 +211,11 @@ int main(int argc, LPCTSTR* argv)
 		getchar();
 		return EXIT_FAILURE;
 	}
+	SceneDevide::SimplicatePointCloud(0.3, scene);
 	std::cout << scene.images.size() << std::endl;
 	SceneDevide::UniqueImageCamera(scene);
 	SceneDevide processer(&scene);
-	processer.workPath = "F:\\MillerWorkPath\\VSProject\\WorkPath303Sparese";
+	processer.workPath = "F:\\MillerWorkPath\\VSProject\\WorkPath303Dense";
 	processer.numOfScenesInX = 5;
 	processer.numOfScenesInY = 5;
 	processer.boundaryMinXY = Point2d(-7.0, -7.0);

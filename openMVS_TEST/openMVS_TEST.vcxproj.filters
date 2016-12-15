@@ -21,9 +21,27 @@
     <ClCompile Include="SceneDevide.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="filesystemSimplified\file_system.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="filesystemSimplified\portability_fixes.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="filesystemSimplified\wildcard.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SceneDevide.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="filesystemSimplified\file_system.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="filesystemSimplified\portability_fixes.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="filesystemSimplified\wildcard.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
